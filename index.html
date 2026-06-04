@@ -1,353 +1,398 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+  <base target="_top">
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
 
-<title>TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://cdn.tailwindcss.com"></script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-<style>
-
-*{
-    font-family:'Inter',sans-serif;
-}
-
-body{
-    background:#0f172a;
-}
-
-</style>
-
+  <title>Task Management System</title>
 </head>
 
-<body class="text-white">
+<body class="bg-slate-100 min-h-screen">
 
-<div class="h-screen flex flex-col">
+  <!-- APP -->
+  <div id="app" class="h-screen flex flex-col">
 
     <!-- HEADER -->
+    <header class="bg-white border-b shadow-sm">
 
-    <div class="bg-slate-900 border-b border-slate-800 p-4">
+      <div class="px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
 
-        <div class="flex justify-between items-center">
+        <!-- LEFT -->
+        <div class="flex items-center gap-4">
 
-            <h1 class="text-2xl font-bold">
-
-                TaskFlow
-
+          <div>
+            <h1 class="text-2xl font-bold text-slate-800">
+              Shared Task Manager
             </h1>
 
-            <div class="flex gap-3">
-
-                <select
-                    id="userSelect"
-                    class="bg-slate-800 p-2 rounded-lg">
-
-                    <option>Sir Ram</option>
-                    <option>Ma'am Ana</option>
-                    <option>Anj</option>
-                    <option>Isaac</option>
-
-                </select>
-
-                <button
-                    id="refreshBtn"
-                    class="bg-blue-600 px-4 py-2 rounded-lg">
-
-                    Refresh
-
-                </button>
-
-            </div>
+            <p class="text-sm text-slate-500">
+              Internal Task Management System
+            </p>
+          </div>
 
         </div>
 
-    </div>
+        <!-- RIGHT -->
+        <div class="flex items-center gap-3">
 
-    <!-- DASHBOARD -->
+          <!-- SEARCH -->
+          <div class="relative">
 
-    <div class="grid grid-cols-5 gap-4 p-6">
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Search tasks..."
+              class="w-72 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
 
-        <div class="bg-slate-800 p-4 rounded-xl">
+          </div>
 
-            <div>Total</div>
-
-            <div
-                id="totalTasks"
-                class="text-3xl font-bold">
-
-                0
-
-            </div>
-
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl">
-
-            <div>To Do</div>
-
-            <div
-                id="todoCount"
-                class="text-3xl font-bold">
-
-                0
-
-            </div>
+          <!-- USER SWITCHER -->
+          <select
+            id="currentUser"
+            class="px-4 py-2 border rounded-lg bg-white"
+          >
+          </select>
 
         </div>
 
-        <div class="bg-slate-800 p-4 rounded-xl">
+      </div>
 
-            <div>Progress</div>
+    </header>
 
-            <div
-                id="progressCount"
-                class="text-3xl font-bold">
+    <!-- MAIN -->
+    <main class="flex-1 overflow-hidden">
 
-                0
+      <div class="grid grid-cols-12 h-full">
+
+        <!-- CENTER CONTENT -->
+        <section class="col-span-12 lg:col-span-8 p-6 overflow-y-auto">
+
+          <!-- STATS -->
+          <div
+            id="statsCards"
+            class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6"
+          >
+
+            <div class="bg-white rounded-xl shadow p-5">
+              <p class="text-slate-500 text-sm">Total Tasks</p>
+              <h2 id="statTotal" class="text-3xl font-bold mt-2">0</h2>
+            </div>
+
+            <div class="bg-white rounded-xl shadow p-5">
+              <p class="text-slate-500 text-sm">Pending</p>
+              <h2 id="statPending" class="text-3xl font-bold mt-2">0</h2>
+            </div>
+
+            <div class="bg-white rounded-xl shadow p-5">
+              <p class="text-slate-500 text-sm">In Progress</p>
+              <h2 id="statProgress" class="text-3xl font-bold mt-2">0</h2>
+            </div>
+
+            <div class="bg-white rounded-xl shadow p-5">
+              <p class="text-slate-500 text-sm">Completed</p>
+              <h2 id="statCompleted" class="text-3xl font-bold mt-2">0</h2>
+            </div>
+
+          </div>
+
+          <!-- VIEW TABS -->
+          <div class="flex gap-2 mb-5">
+
+            <button
+              class="view-tab px-4 py-2 bg-blue-600 text-white rounded-lg"
+              data-view="list"
+            >
+              List
+            </button>
+
+            <button
+              class="view-tab px-4 py-2 bg-white border rounded-lg"
+              data-view="kanban"
+            >
+              Kanban
+            </button>
+
+            <button
+              class="view-tab px-4 py-2 bg-white border rounded-lg"
+              data-view="done"
+            >
+              Done
+            </button>
+
+          </div>
+
+          <!-- TASK CONTAINER -->
+          <div
+            id="taskContainer"
+            class="bg-white rounded-xl shadow min-h-[500px] p-4"
+          >
+
+            <div class="text-center py-20 text-slate-400">
+              Loading tasks...
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- RIGHT SIDEBAR -->
+        <aside
+          class="col-span-12 lg:col-span-4 bg-white border-l overflow-y-auto"
+        >
+
+          <div class="p-5 space-y-6">
+
+            <!-- CALENDAR -->
+            <div>
+
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-lg">
+                  Calendar
+                </h3>
+              </div>
+
+              <div
+                id="calendarContainer"
+                class="border rounded-xl p-4 min-h-[320px]"
+              >
+                Calendar Loading...
+              </div>
 
             </div>
 
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl">
-
-            <div>Review</div>
-
-            <div
-                id="reviewCount"
-                class="text-3xl font-bold">
-
-                0
-
-            </div>
-
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-xl">
-
-            <div>Done</div>
-
-            <div
-                id="doneCount"
-                class="text-3xl font-bold">
-
-                0
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- SEARCH -->
-
-    <div class="px-6">
-
-        <input
-            id="searchInput"
-            placeholder="Search tasks..."
-            class="w-full p-3 rounded-xl bg-slate-800">
-
-    </div>
-
-    <!-- TASKS -->
-
-    <div
-        id="taskContainer"
-        class="flex-1 overflow-auto p-6 space-y-4">
-
-    </div>
-
-</div>
-
-<script>
-
-const APP = {
-
-    WEBAPP_URL:
-    "https://script.google.com/macros/s/AKfycbz9JESvZo_t6IrknR8bw-0S3Gd8CoxUx4KPWd1WEhlIAyaO6U0japOUcrVe6vJoq6Sq/exec",
-
-    currentUser:"Sir Ram",
-
-    tasks:[]
-
-};
-
-document
-.getElementById('userSelect')
-.addEventListener('change',e=>{
-
-    APP.currentUser =
-        e.target.value;
-
-});
-
-async function api(action,data={}){
-
-    const response =
-        await fetch(
-            APP.WEBAPP_URL,
-            {
-                method:'POST',
-                body:JSON.stringify({
-                    action,
-                    ...data
-                })
-            }
-        );
-
-    return await response.json();
-
-}
-
-async function loadTasks(){
-
-    const tasks =
-        await api(
-            'getTasks'
-        );
-
-    APP.tasks =
-        tasks || [];
-
-    renderTasks();
-
-    updateStats();
-
-}
-
-function updateStats(){
-
-    const tasks =
-        APP.tasks;
-
-    document.getElementById(
-        'totalTasks'
-    ).innerText =
-        tasks.length;
-
-    document.getElementById(
-        'todoCount'
-    ).innerText =
-        tasks.filter(
-            t =>
-            t.Status ===
-            'To Do'
-        ).length;
-
-    document.getElementById(
-        'progressCount'
-    ).innerText =
-        tasks.filter(
-            t =>
-            t.Status ===
-            'In Progress'
-        ).length;
-
-    document.getElementById(
-        'reviewCount'
-    ).innerText =
-        tasks.filter(
-            t =>
-            t.Status ===
-            'Review'
-        ).length;
-
-    document.getElementById(
-        'doneCount'
-    ).innerText =
-        tasks.filter(
-            t =>
-            t.Status ===
-            'Done'
-        ).length;
-
-}
-
-function renderTasks(){
-
-    const container =
-        document.getElementById(
-            'taskContainer'
-        );
-
-    container.innerHTML='';
-
-    APP.tasks.forEach(task=>{
-
-        const card =
-            document.createElement('div');
-
-        card.className =
-        `
-        bg-slate-800
-        rounded-xl
-        p-5
-        `;
-
-        card.innerHTML = `
-
-            <div class="flex justify-between">
-
-                <div>
-
-                    <div class="font-bold text-lg">
-
-                        ${task.Title}
-
-                    </div>
-
-                    <div class="text-slate-400 mt-2">
-
-                        ${task.Description || ''}
-
-                    </div>
-
+            <!-- ACTIVITY -->
+            <div>
+
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-lg">
+                  Activity
+                </h3>
+              </div>
+
+              <div
+                id="activityContainer"
+                class="space-y-3"
+              >
+
+                <div class="text-slate-400">
+                  Loading activity...
                 </div>
 
-                <div>
-
-                    ${task.Status}
-
-                </div>
+              </div>
 
             </div>
 
-            <div class="mt-4 text-sm">
+          </div>
 
-                Assigned:
-                ${task.AssignedTo || '-'}
+        </aside>
 
-            </div>
+      </div>
 
-        `;
+    </main>
 
-        container.appendChild(card);
+  </div>
+
+  <!-- FLOATING ADD TASK -->
+  <button
+    id="addTaskBtn"
+    class="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-blue-600 text-white text-3xl shadow-xl hover:bg-blue-700"
+  >
+    +
+  </button>
+
+  <!-- JAVASCRIPT -->
+  <script>
+
+    let TASKS = [];
+    let USERS = [];
+    let ACTIVITY = [];
+    let DASHBOARD = {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+
+      initializeApp();
 
     });
 
-}
+    function initializeApp() {
 
-document
-.getElementById(
-    'refreshBtn'
-)
-.addEventListener(
-    'click',
-    loadTasks
-);
+      loadUsers();
+      loadTasks();
+      loadActivity();
+      loadDashboardStats();
 
-loadTasks();
+    }
 
-</script>
+    // =====================
+    // USERS
+    // =====================
+
+    function loadUsers() {
+
+      google.script.run
+        .withSuccessHandler(renderUsers)
+        .getUsers();
+
+    }
+
+    function renderUsers(users) {
+
+      USERS = users || [];
+
+      const select =
+        document.getElementById("currentUser");
+
+      select.innerHTML = "";
+
+      USERS.forEach(user => {
+
+        const option =
+          document.createElement("option");
+
+        option.value = user.name;
+        option.textContent = user.name;
+
+        select.appendChild(option);
+
+      });
+
+    }
+
+    // =====================
+    // TASKS
+    // =====================
+
+    function loadTasks() {
+
+      google.script.run
+        .withSuccessHandler(renderTasks)
+        .getTasks();
+
+    }
+
+    function renderTasks(tasks) {
+
+      TASKS = tasks || [];
+
+      const container =
+        document.getElementById("taskContainer");
+
+      container.innerHTML = `
+        <div class="space-y-3">
+          ${TASKS.length} task(s) loaded
+        </div>
+      `;
+
+    }
+
+    // =====================
+    // ACTIVITY
+    // =====================
+
+    function loadActivity() {
+
+      google.script.run
+        .withSuccessHandler(renderActivity)
+        .getActivity();
+
+    }
+
+    function renderActivity(data) {
+
+      ACTIVITY = data || [];
+
+      const container =
+        document.getElementById("activityContainer");
+
+      container.innerHTML = "";
+
+      ACTIVITY.slice(0,10).forEach(item => {
+
+        container.innerHTML += `
+          <div class="border rounded-lg p-3">
+            <div class="font-medium">
+              ${item.user}
+            </div>
+
+            <div class="text-sm text-slate-600">
+              ${item.action}
+            </div>
+          </div>
+        `;
+
+      });
+
+    }
+
+    // =====================
+    // DASHBOARD
+    // =====================
+
+    function loadDashboardStats() {
+
+      google.script.run
+        .withSuccessHandler(renderDashboard)
+        .getDashboardStats();
+
+    }
+
+    function renderDashboard(stats) {
+
+      DASHBOARD = stats || {};
+
+      document.getElementById("statTotal").textContent =
+        DASHBOARD.total || 0;
+
+      document.getElementById("statPending").textContent =
+        DASHBOARD.pending || 0;
+
+      document.getElementById("statProgress").textContent =
+        DASHBOARD.inProgress || 0;
+
+      document.getElementById("statCompleted").textContent =
+        DASHBOARD.completed || 0;
+
+    }
+
+    // =====================
+    // SEARCH
+    // =====================
+
+    document
+      .getElementById("searchInput")
+      .addEventListener("input", function() {
+
+        const keyword =
+          this.value.toLowerCase();
+
+        const filtered =
+          TASKS.filter(task =>
+            JSON.stringify(task)
+              .toLowerCase()
+              .includes(keyword)
+          );
+
+        renderTasks(filtered);
+
+      });
+
+    // =====================
+    // ADD TASK
+    // =====================
+
+    document
+      .getElementById("addTaskBtn")
+      .addEventListener("click", () => {
+
+        alert("Add Task Modal - Part 2B.2");
+
+      });
+
+  </script>
 
 </body>
 </html>
