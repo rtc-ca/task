@@ -1266,35 +1266,64 @@ document.addEventListener('DOMContentLoaded',function(){
     else openNewEvent();
   });
   // Profile
+  // ── compressImage helper ─────────────────────────────────────
+  // Resizes image to maxSize x maxSize and encodes as JPEG at given quality.
+  // Keeps base64 payload small enough for Apps Script POST (~50KB limit).
+  function compressImage(file, maxSize, quality, callback){
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var w=img.width,h=img.height;
+        if(w>h){if(w>maxSize){h=Math.round(h*maxSize/w);w=maxSize;}}
+        else{if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize;}}
+        var canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        var ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        callback(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   document.getElementById('profile-input').addEventListener('change',function(e){
     var file=e.target.files[0];if(!file)return;
-    if(file.size>2*1024*1024){document.getElementById('profile-status').textContent='Max 2MB';return;}
+    if(file.size>10*1024*1024){document.getElementById('profile-status').textContent='Max 10MB';return;}
     PROFILE_FILE=file;
     var reader=new FileReader();
     reader.onload=function(ev){
       var pv=document.getElementById('profile-preview');
-      pv.style.cssText='width:88px;height:88px;border-radius:50%;background:url('+ev.target.result+') center/cover;';
+      pv.style.cssText='width:88px;height:88px;border-radius:50%;background:url('+ev.target.result+') center/cover no-repeat;';
       pv.textContent='';
       document.getElementById('profile-status').textContent='Ready to save';
       document.getElementById('profile-status').style.color='var(--green)';
     };
     reader.readAsDataURL(file);
   });
+
   document.getElementById('profile-save-btn').addEventListener('click',async function(){
     if(!PROFILE_FILE){document.getElementById('profile-modal').style.display='none';return;}
-    var st=document.getElementById('profile-status');st.textContent='Saving…';st.style.color='var(--tx2)';
-    var reader=new FileReader();
-    reader.onload=async function(ev){
-      var dataUrl=ev.target.result;
+    var st=document.getElementById('profile-status');
+    st.textContent='Compressing…';st.style.color='var(--tx2)';
+    compressImage(PROFILE_FILE,200,0.75,async function(compressed){
+      st.textContent='Saving…';
       var u=USERS.find(function(u){return u.Name===PROFILE_USER;});
-      var res=await api('updateUserPhoto',{userId:u?u.UserID:PROFILE_USER,photoURL:dataUrl});
-      USERS.forEach(function(u){if(u.Name===PROFILE_USER)u.PhotoURL=dataUrl;});
+      var userId=u?String(u.UserID):PROFILE_USER;
+      var res=await api('updateUserPhoto',{userId:userId,photoURL:compressed});
+      // Always update local cache so UI reflects photo immediately
+      USERS.forEach(function(u){if(u.Name===PROFILE_USER)u.PhotoURL=compressed;});
       if(PROFILE_USER===CURRENT_USER)setUser(CURRENT_USER);
       buildUserUI();renderAll();
-      if(res&&res.success)toast(PROFILE_USER+"'s photo updated!",'success');
       document.getElementById('profile-modal').style.display='none';
-    };
-    reader.readAsDataURL(PROFILE_FILE);
+      if(res&&res.success){
+        toast(PROFILE_USER+"'s photo saved!",'success');
+      } else {
+        toast('Saved locally. Try a smaller image if it disappears on refresh.','info');
+        console.warn('Photo API response:',res);
+      }
+    });
   });
   document.getElementById('profile-close-btn').addEventListener('click',function(){document.getElementById('profile-modal').style.display='none';});
   document.getElementById('profile-cancel-btn').addEventListener('click',function(){document.getElementById('profile-modal').style.display='none';});
