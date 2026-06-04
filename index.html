@@ -119,6 +119,12 @@ textarea.fi{resize:vertical;min-height:80px;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .pulse{animation:pulse 1.5s infinite;}
 
+/* Profile photo upload */
+.photo-upload-ring{position:relative;display:inline-flex;cursor:pointer;}
+.photo-upload-ring:hover .photo-overlay{opacity:1;}
+.photo-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;}
+.photo-upload-ring input[type=file]{display:none;}
+
 /* Mobile */
 @media(max-width:768px){
   #sidebar{position:fixed;left:-220px;z-index:200;height:100vh;}
@@ -231,16 +237,33 @@ textarea.fi{resize:vertical;min-height:80px;}
     <div id="content">
       <!-- DASHBOARD -->
       <div id="view-dashboard" class="view active">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:28px;" id="stats-grid"></div>
-        <div style="display:grid;grid-template-columns:1fr 350px;gap:20px;">
-          <div>
-            <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Recent Tasks</div>
-            <div id="dash-recent" class="card" style="padding:8px;"></div>
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:24px;" id="stats-grid"></div>
+
+        <!-- Main grid: left=per-user + recent, right=calendar+due -->
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
+          <div style="display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Per-user task panels -->
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Tasks by Member</div>
+              <div id="dash-by-user" style="display:flex;flex-direction:column;gap:12px;"></div>
+            </div>
+
+            <!-- Recent tasks -->
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Recent Activity</div>
+              <div id="dash-recent" class="card" style="padding:8px;"></div>
+            </div>
           </div>
-          <div>
-            <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Calendar</div>
-            <div class="card" style="padding:16px;" id="dash-cal"></div>
-            <div style="margin-top:16px;">
+
+          <!-- Right column -->
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Calendar</div>
+              <div class="card" style="padding:16px;" id="dash-cal"></div>
+            </div>
+            <div>
               <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--tx2);">Due Soon</div>
               <div id="dash-due" class="card" style="padding:8px;"></div>
             </div>
@@ -378,6 +401,35 @@ textarea.fi{resize:vertical;min-height:80px;}
   </div>
 </div>
 
+<!-- Profile Modal -->
+<div id="profile-modal" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:400px;">
+    <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between;">
+      <h3 style="font-size:16px;font-weight:600;">Edit Profile</h3>
+      <button class="btn-icon" id="profile-close-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <!-- Avatar upload ring -->
+      <label class="photo-upload-ring">
+        <div id="profile-avatar-preview" style="width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;"></div>
+        <div class="photo-overlay">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <input type="file" id="profile-photo-input" accept="image/*"/>
+      </label>
+      <div style="text-align:center;">
+        <div id="profile-name-display" style="font-size:17px;font-weight:600;"></div>
+        <div style="font-size:12px;color:var(--tx3);margin-top:3px;">Click photo to change</div>
+      </div>
+      <div id="profile-upload-status" style="font-size:12.5px;color:var(--tx2);min-height:18px;text-align:center;"></div>
+      <div style="display:flex;gap:10px;width:100%;">
+        <button id="profile-save-btn" class="btn btn-primary" style="flex:1;justify-content:center;">Save Photo</button>
+        <button id="profile-cancel-btn" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────
 //  CONFIG
@@ -440,12 +492,59 @@ async function loadAll() {
     api('getActivity'),
     api('getDashboardStats')
   ]);
-  if (results[0]) TASKS = Array.isArray(results[0]) ? results[0] : [];
-  if (results[1] && Array.isArray(results[1])) { USERS = results[1]; buildUserUI(); }
-  if (results[2]) ACTIVITY = Array.isArray(results[2]) ? results[2] : [];
+  if (results[0]) TASKS = Array.isArray(results[0]) ? results[0].map(normalizeTask) : [];
+  if (results[1] && Array.isArray(results[1])) { USERS = results[1].map(normalizeUser); buildUserUI(); }
+  if (results[2]) ACTIVITY = Array.isArray(results[2]) ? results[2].map(normalizeActivity) : [];
   if (results[3]) STATS = results[3];
   renderAll();
   buildNotifs();
+}
+
+// Normalize task — maps any variation of field name to the expected key
+// This makes the app resilient even if the Sheet headers differ in case
+function normalizeTask(t) {
+  // Build a lowercase key map
+  var lc = {};
+  Object.keys(t).forEach(function(k){ lc[k.toLowerCase()] = t[k]; });
+  return {
+    ID:            t.ID            || t.Id            || lc['id']            || '',
+    Title:         t.Title         || t.title         || lc['title']         || '',
+    Description:   t.Description   || t.description   || lc['description']   || '',
+    Remarks:       t.Remarks       || t.remarks       || lc['remarks']       || '',
+    AssignedTo:    t.AssignedTo    || t.assignedTo    || lc['assignedto']    || '',
+    CreatedBy:     t.CreatedBy     || t.createdBy     || lc['createdby']     || '',
+    DueType:       t.DueType       || t.dueType       || lc['duetype']       || 'None',
+    DueDate:       t.DueDate       || t.dueDate       || lc['duedate']       || '',
+    Status:        t.Status        || t.status        || lc['status']        || 'To Do',
+    Priority:      t.Priority      || t.priority      || lc['priority']      || 'Medium',
+    CreatedAt:     t.CreatedAt     || t.createdAt     || lc['createdat']     || '',
+    UpdatedAt:     t.UpdatedAt     || t.updatedAt     || lc['updatedat']     || '',
+    CompletedAt:   t.CompletedAt   || t.completedAt   || lc['completedat']   || '',
+    LastUpdatedBy: t.LastUpdatedBy || t.lastUpdatedBy || lc['lastupdatedby'] || ''
+  };
+}
+
+function normalizeUser(u) {
+  var lc = {};
+  Object.keys(u).forEach(function(k){ lc[k.toLowerCase()] = u[k]; });
+  return {
+    UserID:   u.UserID   || u.userId   || lc['userid']   || '',
+    Name:     u.Name     || u.name     || lc['name']     || '',
+    PhotoURL: u.PhotoURL || u.photoURL || lc['photourl'] || '',
+    CreatedAt:u.CreatedAt|| u.createdAt|| lc['createdat']|| ''
+  };
+}
+
+function normalizeActivity(a) {
+  var lc = {};
+  Object.keys(a).forEach(function(k){ lc[k.toLowerCase()] = a[k]; });
+  return {
+    Timestamp: a.Timestamp || a.timestamp || lc['timestamp'] || '',
+    User:      a.User      || a.user      || lc['user']      || '',
+    Action:    a.Action    || a.action    || lc['action']    || '',
+    TaskID:    a.TaskID    || a.taskID    || lc['taskid']    || '',
+    Details:   a.Details   || a.details   || lc['details']   || ''
+  };
 }
 
 // ─────────────────────────────────────────
@@ -464,13 +563,25 @@ function buildUserUI() {
   var menu = document.getElementById('user-menu');
   menu.innerHTML = '';
   USERS.forEach(function(u) {
-    var div = document.createElement('div');
-    div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .12s;font-size:13px;';
-    div.innerHTML = avHTML(u.Name, 24) + '<span>' + esc(u.Name) + '</span>';
-    div.addEventListener('mouseenter', function(){ this.style.background = 'var(--bg4)'; });
-    div.addEventListener('mouseleave', function(){ this.style.background = ''; });
-    div.addEventListener('click', function(){ setUser(u.Name); });
-    menu.appendChild(div);
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;transition:background .12s;font-size:13px;border-bottom:1px solid var(--bd);';
+    // Switch user area
+    var switchArea = document.createElement('div');
+    switchArea.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;padding:2px 0;';
+    switchArea.innerHTML = avHTML(u.Name, 26) + '<span style="font-weight:500;">' + esc(u.Name) + '</span>';
+    switchArea.addEventListener('click', function(){ setUser(u.Name); });
+    // Edit photo button
+    var editBtn = document.createElement('button');
+    editBtn.className = 'btn-icon';
+    editBtn.style.cssText = 'padding:4px;border-radius:6px;flex-shrink:0;';
+    editBtn.title = 'Edit photo';
+    editBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+    editBtn.addEventListener('click', function(e){ e.stopPropagation(); openProfileModal(u.Name); });
+    row.addEventListener('mouseenter', function(){ row.style.background='var(--bg4)'; });
+    row.addEventListener('mouseleave', function(){ row.style.background=''; });
+    row.appendChild(switchArea);
+    row.appendChild(editBtn);
+    menu.appendChild(row);
   });
 
   if (!CURRENT_USER && USERS.length) setUser(USERS[0].Name);
@@ -480,8 +591,15 @@ function setUser(name) {
   CURRENT_USER = name;
   document.getElementById('sb-name').textContent = name;
   var av = document.getElementById('sb-avatar');
-  av.style.cssText = 'width:26px;height:26px;background:'+uColor(name)+';color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;';
-  av.textContent = initials(name);
+  var user = USERS.find(function(u){ return u.Name===name; });
+  if (user && user.PhotoURL) {
+    av.innerHTML = '<img src="'+user.PhotoURL+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover;" />';
+    av.style.cssText = 'width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;display:inline-flex;';
+  } else {
+    av.innerHTML = '';
+    av.style.cssText = 'width:26px;height:26px;background:'+uColor(name)+';color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;';
+    av.textContent = initials(name);
+  }
   document.getElementById('user-menu').style.display = 'none';
 }
 
@@ -498,11 +616,12 @@ function uColor(name) {
 
 function avHTML(name, size) {
   size = size || 28;
+  var fs = Math.max(9, Math.floor(size*0.38));
   var user = USERS.find(function(u){ return u.Name === name; });
   if (user && user.PhotoURL) {
-    return '<img src="'+user.PhotoURL+'" class="av" style="width:'+size+'px;height:'+size+'px;" alt="'+esc(name)+'"/>';
+    return '<img src="'+user.PhotoURL+'" class="av" style="width:'+size+'px;height:'+size+'px;object-fit:cover;" />';
   }
-  return '<div class="av" style="width:'+size+'px;height:'+size+'px;background:'+uColor(name)+';color:#fff;">'+initials(name)+'</div>';
+  return '<span class="av" style="width:'+size+'px;height:'+size+'px;background:'+uColor(name)+';color:#fff;font-size:'+fs+'px;">'+initials(name)+'</span>';
 }
 
 // ─────────────────────────────────────────
@@ -510,6 +629,7 @@ function avHTML(name, size) {
 // ─────────────────────────────────────────
 function renderAll() {
   renderStats();
+  renderDashByUser();
   renderDashRecent();
   renderDashCal();
   renderDueSoon();
@@ -602,10 +722,133 @@ function taskRow(t) {
 // ─────────────────────────────────────────
 //  DASHBOARD
 // ─────────────────────────────────────────
+function renderDashByUser() {
+  var el = document.getElementById('dash-by-user');
+  if (!el) return;
+
+  var statusColors = {
+    'To Do':      { bg:'rgba(152,152,176,.12)', tx:'var(--tx2)',    dot:'var(--tx3)' },
+    'In Progress':{ bg:'rgba(96,165,250,.12)',  tx:'var(--blue)',   dot:'var(--blue)' },
+    'Review':     { bg:'rgba(167,139,250,.12)', tx:'var(--purple)', dot:'var(--purple)' },
+    'Done':       { bg:'rgba(52,211,153,.12)',  tx:'var(--green)',  dot:'var(--green)' }
+  };
+
+  // Use USERS order; fallback to unique AssignedTo values if USERS not loaded yet
+  var members = USERS.length
+    ? USERS.map(function(u){ return u.Name; })
+    : Array.from(new Set(TASKS.map(function(t){ return t.AssignedTo; }).filter(Boolean)));
+
+  if (!members.length) {
+    el.innerHTML = empty('No members found');
+    return;
+  }
+
+  var html = '';
+  members.forEach(function(name) {
+    var userTasks = TASKS.filter(function(t){ return t.AssignedTo === name; });
+    var active    = userTasks.filter(function(t){ return t.Status !== 'Done'; });
+    var done      = userTasks.filter(function(t){ return t.Status === 'Done'; });
+    var overdue   = userTasks.filter(function(t){ return isOverdue(t); });
+
+    // Count by status
+    var counts = { 'To Do':0, 'In Progress':0, 'Review':0, 'Done':0 };
+    userTasks.forEach(function(t){ if (counts[t.Status]!==undefined) counts[t.Status]++; });
+
+    // Collapsed/expanded toggle — default expanded
+    var panelId = 'user-panel-' + name.replace(/[^a-zA-Z0-9]/g,'_');
+    var listId  = 'user-list-'  + name.replace(/[^a-zA-Z0-9]/g,'_');
+
+    html += '<div class="card" style="overflow:hidden;">';
+
+    // Header row
+    html += '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;" '
+          + 'onclick="toggleUserPanel(\''+listId+'\')" id="'+panelId+'">';
+    html += avHTML(name, 32);
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="font-weight:600;font-size:14px;">'+esc(name)+'</div>';
+    html += '<div style="font-size:12px;color:var(--tx3);margin-top:2px;">'
+          + userTasks.length+' task'+(userTasks.length!==1?'s':'')+' total'
+          + (overdue.length ? ' &nbsp;·&nbsp; <span style="color:var(--red);">⚠ '+overdue.length+' overdue</span>' : '')
+          + '</div>';
+    html += '</div>';
+
+    // Mini status pill counts
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">';
+    ['To Do','In Progress','Review','Done'].forEach(function(s){
+      if (counts[s] > 0) {
+        var sc = statusColors[s];
+        html += '<span style="background:'+sc.bg+';color:'+sc.tx+';border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:500;white-space:nowrap;">'
+              + s+' '+counts[s]+'</span>';
+      }
+    });
+    html += '</div>';
+
+    // Chevron
+    html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+          + 'style="color:var(--tx3);flex-shrink:0;transition:transform .2s;" id="chev-'+listId+'"><path d="m6 9 6 6 6-6"/></svg>';
+    html += '</div>'; // end header
+
+    // Task list (collapsible)
+    html += '<div id="'+listId+'" style="border-top:1px solid var(--bd);">';
+    if (userTasks.length === 0) {
+      html += empty('No tasks assigned');
+    } else {
+      // Active tasks first, then done
+      var sorted = active.concat(done)
+        .sort(function(a,b){
+          // Sort: overdue first, then by status order, then by due date
+          var order = {'To Do':0,'In Progress':1,'Review':2,'Done':3};
+          if (isOverdue(a) && !isOverdue(b)) return -1;
+          if (!isOverdue(a) && isOverdue(b)) return 1;
+          var od = (order[a.Status]||0)-(order[b.Status]||0);
+          if (od!==0) return od;
+          if (a.DueDate && b.DueDate) return new Date(a.DueDate)-new Date(b.DueDate);
+          return 0;
+        });
+      html += '<div style="padding:6px 8px;" class="user-task-list" data-listid="'+listId+'">';
+      sorted.forEach(function(t){
+        var od = isOverdue(t);
+        var pColor = t.Priority==='High'?'var(--red)':t.Priority==='Medium'?'var(--amber)':'var(--green)';
+        html += '<div class="task-row" data-id="'+t.ID+'">'
+          +'<div style="width:3px;height:32px;border-radius:99px;background:'+pColor+';flex-shrink:0;"></div>'
+          +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(t.Status==='Done'?'text-decoration:line-through;color:var(--tx3);':'')+'">'+esc(t.Title)+'</div>'
+            +'<div style="font-size:11.5px;color:var(--tx3);margin-top:1px;display:flex;align-items:center;gap:8px;">'
+              +(t.DueDate?'<span style="color:'+(od?'var(--red)':isDueToday(t)?'var(--amber)':'var(--tx3)')+';">'+(od?'⚠ ':isDueToday(t)?'⏰ ':'')+fmtDate(t.DueDate)+'</span>':'')
+              +(t.CreatedBy?'<span>by '+esc(t.CreatedBy)+'</span>':'')
+            +'</div>'
+          +'</div>'
+          +sBadge(t.Status)
+          +pBadge(t.Priority)
+          +'</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>'; // end list
+    html += '</div>'; // end card
+  });
+
+  el.innerHTML = html;
+
+  // Attach click events to all task rows inside user panels
+  el.querySelectorAll('.task-row[data-id]').forEach(function(row){
+    row.addEventListener('click', function(){ openDetail(row.getAttribute('data-id')); });
+  });
+}
+
+function toggleUserPanel(listId) {
+  var list = document.getElementById(listId);
+  var chev = document.getElementById('chev-'+listId);
+  if (!list) return;
+  var isOpen = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
 function renderDashRecent() {
   var el = document.getElementById('dash-recent');
   var list = TASKS.filter(function(t){ return t.Status!=='Done'; })
-    .sort(function(a,b){ return new Date(b.UpdatedAt)-new Date(a.UpdatedAt); }).slice(0,8);
+    .sort(function(a,b){ return new Date(b.UpdatedAt)-new Date(a.UpdatedAt); }).slice(0,6);
   el.innerHTML = list.length ? list.map(taskRow).join('') : empty('No active tasks');
   attachRowClicks(el);
 }
@@ -621,7 +864,77 @@ function renderDueSoon() {
 }
 
 // ─────────────────────────────────────────
-//  LIST VIEW
+//  SHARED GROUP HELPERS
+// ─────────────────────────────────────────
+function getMemberOrder_() {
+  return USERS.length ? USERS.map(function(u){ return u.Name; }) : [];
+}
+
+// Renders a collapsible group card for a list of tasks
+function groupSection_(label, tasks, gid, subtext, isDone) {
+  var listId = gid + '-list';
+  var chevId = 'chev-' + listId;
+  var html = '<div class="card" style="overflow:hidden;">';
+  // Header
+  html += '<div style="padding:13px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;" onclick="toggleUserPanel(''+listId+'')" >';
+  html += avHTML(label, 30);
+  html += '<div style="flex:1;min-width:0;">';
+  html += '<div style="font-weight:600;font-size:13.5px;">'+esc(label)+'</div>';
+  html += '<div style="font-size:12px;color:var(--tx3);margin-top:1px;">'+subtext+'</div>';
+  html += '</div>';
+  // Status mini pills
+  if (!isDone) {
+    var counts = {};
+    tasks.forEach(function(t){ counts[t.Status] = (counts[t.Status]||0)+1; });
+    var pillColors = {'To Do':'rgba(152,152,176,.15)','In Progress':'rgba(96,165,250,.15)','Review':'rgba(167,139,250,.15)'};
+    var pillText   = {'To Do':'var(--tx2)','In Progress':'var(--blue)','Review':'var(--purple)'};
+    html += '<div style="display:flex;gap:5px;flex-wrap:wrap;">';
+    ['To Do','In Progress','Review'].forEach(function(s){
+      if (counts[s]) html += '<span style="background:'+pillColors[s]+';color:'+pillText[s]+';border-radius:99px;padding:2px 8px;font-size:11px;font-weight:500;">'+s+' '+counts[s]+'</span>';
+    });
+    html += '</div>';
+  } else {
+    html += '<span style="background:rgba(52,211,153,.12);color:var(--green);border-radius:99px;padding:2px 8px;font-size:11px;font-weight:500;">Done '+tasks.length+'</span>';
+  }
+  html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--tx3);flex-shrink:0;transition:transform .2s;" id="'+chevId+'"><path d="m6 9 6 6 6-6"/></svg>';
+  html += '</div>';
+  // Task list
+  html += '<div id="'+listId+'" style="border-top:1px solid var(--bd);padding:6px 8px;">';
+  tasks.forEach(function(t) {
+    if (isDone) {
+      html += '<div class="task-row" data-id="'+t.ID+'">'
+        +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" style="flex-shrink:0;"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div class="done-strike" style="font-size:13px;">'+esc(t.Title)+'</div>'
+          +'<div style="font-size:11.5px;color:var(--tx3);">'
+            +(t.AssignedTo?'Assigned to '+esc(t.AssignedTo):'')
+            +(t.CompletedAt?' &nbsp;·&nbsp; Completed '+fmtDate(t.CompletedAt):'')
+          +'</div>'
+        +'</div>'
+        +pBadge(t.Priority)
+        +'</div>';
+    } else {
+      var od = isOverdue(t);
+      var pColor = t.Priority==='High'?'var(--red)':t.Priority==='Medium'?'var(--amber)':'var(--green)';
+      html += '<div class="task-row" data-id="'+t.ID+'">'
+        +'<div style="width:3px;height:32px;border-radius:99px;background:'+pColor+';flex-shrink:0;"></div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+hlText(esc(t.Title))+'</div>'
+          +'<div style="font-size:11.5px;color:var(--tx3);margin-top:2px;display:flex;align-items:center;gap:8px;">'
+            +(t.AssignedTo?'<span style="display:flex;align-items:center;gap:3px;">'+avHTML(t.AssignedTo,14)+' '+esc(t.AssignedTo)+'</span>':'')
+            +(t.DueDate?'<span style="color:'+(od?'var(--red)':isDueToday(t)?'var(--amber)':'var(--tx3)')+';">'+(od?'⚠ ':isDueToday(t)?'⏰ ':'')+fmtDate(t.DueDate)+'</span>':'')
+          +'</div>'
+        +'</div>'
+        +sBadge(t.Status)+' '+pBadge(t.Priority)
+        +'</div>';
+    }
+  });
+  html += '</div></div>';
+  return html;
+}
+
+// ─────────────────────────────────────────
+//  LIST VIEW  (grouped by creator)
 // ─────────────────────────────────────────
 function renderList() {
   var el = document.getElementById('list-tasks');
@@ -631,9 +944,33 @@ function renderList() {
   if (fs) tasks = tasks.filter(function(t){ return t.Status===fs; });
   if (fa) tasks = tasks.filter(function(t){ return t.AssignedTo===fa; });
   if (FILTER_PRIORITY) tasks = tasks.filter(function(t){ return t.Priority===FILTER_PRIORITY; });
-  if (SEARCH_Q) tasks = tasks.filter(function(t){ return (t.Title||'').toLowerCase().includes(SEARCH_Q.toLowerCase())||(t.Description||'').toLowerCase().includes(SEARCH_Q.toLowerCase()); });
-  el.innerHTML = tasks.length ? tasks.map(taskRow).join('') : empty('No tasks found');
-  attachRowClicks(el);
+  if (SEARCH_Q) tasks = tasks.filter(function(t){
+    return (t.Title||'').toLowerCase().includes(SEARCH_Q.toLowerCase())
+        || (t.Description||'').toLowerCase().includes(SEARCH_Q.toLowerCase());
+  });
+
+  if (!tasks.length) { el.innerHTML = empty('No tasks found'); return; }
+
+  var members = getMemberOrder_();
+  tasks.forEach(function(t){ if (t.CreatedBy && members.indexOf(t.CreatedBy)===-1) members.push(t.CreatedBy); });
+
+  var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+  members.forEach(function(creator) {
+    var group = tasks.filter(function(t){ return t.CreatedBy===creator; });
+    if (!group.length) return;
+    var od = group.filter(isOverdue).length;
+    var sub = group.length+' task'+(group.length!==1?'s':'')
+      +(od?' &nbsp;·&nbsp; <span style="color:var(--red);">⚠ '+od+' overdue</span>':'');
+    html += groupSection_(creator, group, 'lv-'+creator.replace(/[^a-zA-Z0-9]/g,'_'), sub, false);
+  });
+  var noCreator = tasks.filter(function(t){ return !t.CreatedBy; });
+  if (noCreator.length) html += groupSection_('No creator', noCreator, 'lv-none', noCreator.length+' task'+(noCreator.length!==1?'s':''), false);
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.querySelectorAll('.task-row[data-id]').forEach(function(row){
+    row.addEventListener('click', function(){ openDetail(row.getAttribute('data-id')); });
+  });
 }
 
 // ─────────────────────────────────────────
@@ -778,23 +1115,33 @@ function renderCalDayTasks() {
 }
 
 // ─────────────────────────────────────────
-//  DONE VIEW
+//  DONE VIEW  (grouped by creator)
 // ─────────────────────────────────────────
 function renderDone() {
   var el = document.getElementById('done-tasks');
   var done = TASKS.filter(function(t){ return t.Status==='Done'; })
     .sort(function(a,b){ return new Date(b.CompletedAt||b.UpdatedAt)-new Date(a.CompletedAt||a.UpdatedAt); });
-  el.innerHTML = done.length ? done.map(function(t){
-    return '<div class="task-row" data-id="'+t.ID+'">'
-      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" style="flex-shrink:0;"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>'
-      +'<div style="flex:1;min-width:0;">'
-        +'<div class="done-strike" style="font-size:13.5px;">'+esc(t.Title)+'</div>'
-        +'<div style="font-size:12px;color:var(--tx3);">'+(t.AssignedTo||'')+(t.CompletedAt?' · '+fmtDate(t.CompletedAt):'')+'</div>'
-      +'</div>'
-      +pBadge(t.Priority)
-      +'</div>';
-  }).join('') : empty('No completed tasks yet');
-  attachRowClicks(el);
+
+  if (!done.length) { el.innerHTML = empty('No completed tasks yet'); return; }
+
+  var members = getMemberOrder_();
+  done.forEach(function(t){ if (t.CreatedBy && members.indexOf(t.CreatedBy)===-1) members.push(t.CreatedBy); });
+
+  var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+  members.forEach(function(creator) {
+    var group = done.filter(function(t){ return t.CreatedBy===creator; });
+    if (!group.length) return;
+    var sub = group.length+' completed task'+(group.length!==1?'s':'');
+    html += groupSection_(creator, group, 'dv-'+creator.replace(/[^a-zA-Z0-9]/g,'_'), sub, true);
+  });
+  var noCreator = done.filter(function(t){ return !t.CreatedBy; });
+  if (noCreator.length) html += groupSection_('No creator', noCreator, 'dv-none', noCreator.length+' completed task'+(noCreator.length!==1?'s':''), true);
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.querySelectorAll('.task-row[data-id]').forEach(function(row){
+    row.addEventListener('click', function(){ openDetail(row.getAttribute('data-id')); });
+  });
 }
 
 // ─────────────────────────────────────────
@@ -1082,6 +1429,104 @@ function toggleNotif() {
   NOTIF_OPEN = !NOTIF_OPEN;
   document.getElementById('notif-panel').style.display = NOTIF_OPEN ? 'flex' : 'none';
 }
+
+// ─────────────────────────────────────────
+//  PROFILE PHOTO
+// ─────────────────────────────────────────
+var PROFILE_USER = '';
+var PROFILE_FILE = null;
+var PROFILE_PREVIEW_URL = '';
+
+function openProfileModal(name) {
+  PROFILE_USER = name;
+  PROFILE_FILE = null;
+  PROFILE_PREVIEW_URL = '';
+  document.getElementById('profile-upload-status').textContent = '';
+  document.getElementById('profile-name-display').textContent = name;
+  document.getElementById('user-menu').style.display = 'none';
+
+  var preview = document.getElementById('profile-avatar-preview');
+  var user = USERS.find(function(u){ return u.Name===name; });
+  if (user && user.PhotoURL) {
+    preview.style.cssText = 'width:88px;height:88px;border-radius:50%;background:url('+user.PhotoURL+') center/cover;';
+    preview.textContent = '';
+  } else {
+    preview.style.cssText = 'width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;background:'+uColor(name)+';';
+    preview.textContent = initials(name);
+  }
+  document.getElementById('profile-photo-input').value = '';
+  document.getElementById('profile-modal').style.display = 'flex';
+}
+
+document.getElementById('profile-photo-input').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    document.getElementById('profile-upload-status').textContent = 'Image too large (max 2MB)';
+    document.getElementById('profile-upload-status').style.color = 'var(--red)';
+    return;
+  }
+  PROFILE_FILE = file;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    PROFILE_PREVIEW_URL = ev.target.result;
+    var preview = document.getElementById('profile-avatar-preview');
+    preview.style.cssText = 'width:88px;height:88px;border-radius:50%;background:url('+PROFILE_PREVIEW_URL+') center/cover;';
+    preview.textContent = '';
+    document.getElementById('profile-upload-status').textContent = 'Ready to save';
+    document.getElementById('profile-upload-status').style.color = 'var(--green)';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('profile-save-btn').addEventListener('click', async function() {
+  if (!PROFILE_FILE && !PROFILE_PREVIEW_URL) {
+    document.getElementById('profile-upload-status').textContent = 'Please select a photo first.';
+    document.getElementById('profile-upload-status').style.color = 'var(--amber)';
+    return;
+  }
+  if (!PROFILE_FILE) { document.getElementById('profile-modal').style.display='none'; return; }
+
+  var statusEl = document.getElementById('profile-upload-status');
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--tx2)';
+
+  // Convert to base64 and send to Apps Script
+  var reader = new FileReader();
+  reader.onload = async function(ev) {
+    var dataUrl = ev.target.result;
+    // dataUrl = "data:image/png;base64,XXXX"
+    var base64 = dataUrl.split(',')[1];
+    var mimeType = dataUrl.split(';')[0].split(':')[1];
+
+    // Find user ID
+    var user = USERS.find(function(u){ return u.Name===PROFILE_USER; });
+    var userId = user ? user.UserID : '';
+
+    var res = await api('updateUserPhoto', { userId: userId, photoURL: dataUrl });
+    if (res && res.success) {
+      // Update local USERS cache immediately
+      USERS.forEach(function(u){ if (u.Name===PROFILE_USER) u.PhotoURL=dataUrl; });
+      toast(PROFILE_USER + "'s photo updated!", 'success');
+      document.getElementById('profile-modal').style.display='none';
+      // Refresh sidebar avatar if this is the current user
+      if (PROFILE_USER === CURRENT_USER) setUser(CURRENT_USER);
+      renderAll();
+    } else {
+      statusEl.textContent = 'Save failed — see console.';
+      statusEl.style.color = 'var(--red)';
+      // Still update locally for the session even if backend fails
+      USERS.forEach(function(u){ if (u.Name===PROFILE_USER) u.PhotoURL=dataUrl; });
+      if (PROFILE_USER === CURRENT_USER) setUser(CURRENT_USER);
+      renderAll();
+    }
+  };
+  reader.readAsDataURL(PROFILE_FILE);
+});
+
+document.getElementById('profile-close-btn').addEventListener('click', function(){ document.getElementById('profile-modal').style.display='none'; });
+document.getElementById('profile-cancel-btn').addEventListener('click', function(){ document.getElementById('profile-modal').style.display='none'; });
+document.getElementById('profile-modal').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
 
 // ─────────────────────────────────────────
 //  INIT
