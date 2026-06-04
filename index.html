@@ -7,44 +7,195 @@
   <title>Shared Task Manager</title>
 </head>
 <body class="bg-slate-100 min-h-screen">
-  <div id="app" class="h-screen flex flex-col">
-    <header class="bg-white border-b shadow-sm p-4 flex justify-between items-center">
+
+<div id="app" class="h-screen flex flex-col">
+
+  <header class="bg-white border-b shadow-sm">
+    <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold">Shared Task Manager</h1>
-        <p class="text-sm text-slate-500">Google Apps Script + Sheets</p>
+        <p class="text-sm text-slate-500">Google Apps Script + Google Sheets</p>
       </div>
+
       <div class="flex gap-3">
-        <input id="searchInput" class="border rounded px-3 py-2" placeholder="Search tasks">
-        <select id="currentUser" class="border rounded px-3 py-2">
+        <input id="searchInput" class="border rounded-lg px-4 py-2" placeholder="Search tasks">
+        <select id="currentUser" class="border rounded-lg px-4 py-2">
           <option>Sir Ram</option>
           <option>Ma'am Ana</option>
           <option>Anj</option>
           <option>Isaac</option>
         </select>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <main class="flex-1 p-6">
-      <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded shadow"><h2 id="statTotal">0</h2><p>Total</p></div>
-        <div class="bg-white p-4 rounded shadow"><h2 id="statPending">0</h2><p>Pending</p></div>
-        <div class="bg-white p-4 rounded shadow"><h2 id="statProgress">0</h2><p>In Progress</p></div>
-        <div class="bg-white p-4 rounded shadow"><h2 id="statCompleted">0</h2><p>Completed</p></div>
+  <main class="flex-1 overflow-hidden">
+    <div class="grid grid-cols-12 h-full">
+
+      <section class="col-span-12 lg:col-span-8 p-6 overflow-y-auto">
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white p-4 rounded-xl shadow"><div>Total</div><div id="statTotal" class="text-3xl font-bold">0</div></div>
+          <div class="bg-white p-4 rounded-xl shadow"><div>Pending</div><div id="statPending" class="text-3xl font-bold">0</div></div>
+          <div class="bg-white p-4 rounded-xl shadow"><div>In Progress</div><div id="statProgress" class="text-3xl font-bold">0</div></div>
+          <div class="bg-white p-4 rounded-xl shadow"><div>Completed</div><div id="statCompleted" class="text-3xl font-bold">0</div></div>
+        </div>
+
+        <div class="flex gap-2 mb-4">
+          <button class="px-4 py-2 bg-blue-600 text-white rounded">List</button>
+          <button class="px-4 py-2 bg-white border rounded">Kanban</button>
+          <button class="px-4 py-2 bg-white border rounded">Done</button>
+        </div>
+
+        <div id="taskContainer" class="bg-white rounded-xl shadow p-4 min-h-[500px]">
+          Loading tasks...
+        </div>
+      </section>
+
+      <aside class="col-span-12 lg:col-span-4 bg-white border-l overflow-y-auto">
+        <div class="p-5 space-y-6">
+          <div>
+            <h3 class="font-bold mb-3">Calendar</h3>
+            <div id="calendarContainer" class="border rounded-xl p-4 min-h-[250px]">
+              Calendar placeholder
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-bold mb-3">Activity</h3>
+            <div id="activityContainer">
+              Loading activity...
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <button id="addTaskBtn"
+    class="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-blue-600 text-white text-3xl shadow-xl">+</button>
+
+</div>
+
+<div id="taskModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
+  <div class="bg-white rounded-xl w-full max-w-3xl mx-4">
+    <div class="p-4 border-b flex justify-between">
+      <h2 id="modalTitle" class="font-bold text-xl">Create Task</h2>
+      <button onclick="closeTaskModal()">✕</button>
+    </div>
+
+    <div class="p-4 space-y-3">
+      <input id="taskId" type="hidden">
+
+      <input id="taskTitle" class="w-full border rounded p-2" placeholder="Title">
+
+      <textarea id="taskDescription" class="w-full border rounded p-2" placeholder="Description"></textarea>
+
+      <textarea id="taskRemarks" class="w-full border rounded p-2" placeholder="Remarks"></textarea>
+
+      <div class="grid grid-cols-2 gap-3">
+        <select id="taskAssignedTo" class="border rounded p-2">
+          <option>Sir Ram</option>
+          <option>Ma'am Ana</option>
+          <option>Anj</option>
+          <option>Isaac</option>
+        </select>
+
+        <select id="taskPriority" class="border rounded p-2">
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+          <option>Urgent</option>
+        </select>
       </div>
 
-      <div id="taskContainer" class="bg-white rounded shadow p-4">
-        Loading tasks...
+      <div class="grid grid-cols-2 gap-3">
+        <select id="taskStatus" class="border rounded p-2">
+          <option>Pending</option>
+          <option>In Progress</option>
+          <option>Blocked</option>
+          <option>Completed</option>
+        </select>
+
+        <input id="taskDueDate" type="date" class="border rounded p-2">
       </div>
-    </main>
+    </div>
+
+    <div class="p-4 border-t flex justify-end gap-2">
+      <button onclick="closeTaskModal()" class="border px-4 py-2 rounded">Cancel</button>
+      <button id="saveTaskBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+    </div>
   </div>
+</div>
 
 <script>
-let EDIT_MODE = false;
-let CURRENT_TASK = {};
+let TASKS=[];
+let USERS=[];
+let ACTIVITY=[];
+let DASHBOARD={};
+let EDIT_MODE=false;
+let CURRENT_TASK={};
+
+document.addEventListener("DOMContentLoaded", initializeApp);
+
+function initializeApp(){
+  if(typeof google !== "undefined" && google.script){
+    loadUsers();
+    loadTasks();
+    loadActivity();
+    loadDashboardStats();
+  }
+}
 
 function loadUsers(){
-  google.script.run.withSuccessHandler(console.log).getUsers();
+  google.script.run.withSuccessHandler(renderUsers).getUsers();
 }
+
+function renderUsers(users){
+  USERS = users || [];
+}
+
+function loadTasks(){
+  google.script.run.withSuccessHandler(renderTasks).getTasks();
+}
+
+function renderTasks(tasks){
+  TASKS = tasks || [];
+  document.getElementById("taskContainer").innerHTML =
+    TASKS.map(t => `<div class="border rounded p-3 mb-2">
+      <div class="font-semibold">${t.Title || ""}</div>
+      <div class="text-sm">${t.AssignedTo || ""}</div>
+    </div>`).join("") || "No tasks";
+}
+
+function loadActivity(){
+  google.script.run.withSuccessHandler(data=>{
+    ACTIVITY=data||[];
+  }).getActivity();
+}
+
+function loadDashboardStats(){
+  google.script.run.withSuccessHandler(stats=>{
+    document.getElementById("statTotal").textContent=stats.total||0;
+    document.getElementById("statPending").textContent=stats.pending||0;
+    document.getElementById("statProgress").textContent=stats.inProgress||0;
+    document.getElementById("statCompleted").textContent=stats.completed||0;
+  }).getDashboardStats();
+}
+
+function openCreateTaskModal(){
+  document.getElementById("taskModal").classList.remove("hidden");
+  document.getElementById("taskModal").classList.add("flex");
+}
+
+function closeTaskModal(){
+  document.getElementById("taskModal").classList.add("hidden");
+  document.getElementById("taskModal").classList.remove("flex");
+}
+
+document.getElementById("addTaskBtn").addEventListener("click", openCreateTaskModal);
 </script>
+
 </body>
 </html>
