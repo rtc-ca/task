@@ -1312,16 +1312,19 @@ document.addEventListener('DOMContentLoaded',function(){
       var u=USERS.find(function(u){return u.Name===PROFILE_USER;});
       var userId=u?String(u.UserID):PROFILE_USER;
       var res=await api('updateUserPhoto',{userId:userId,photoURL:compressed});
-      // Always update local cache so UI reflects photo immediately
-      USERS.forEach(function(u){if(u.Name===PROFILE_USER)u.PhotoURL=compressed;});
-      if(PROFILE_USER===CURRENT_USER)setUser(CURRENT_USER);
-      buildUserUI();renderAll();
-      document.getElementById('profile-modal').style.display='none';
+
       if(res&&res.success){
+        // Use the Drive URL returned by the API so it persists after refresh
+        var finalUrl = (res.url && res.url.indexOf('http')===0) ? res.url : compressed;
+        USERS.forEach(function(u){if(u.Name===PROFILE_USER)u.PhotoURL=finalUrl;});
+        if(PROFILE_USER===CURRENT_USER)setUser(CURRENT_USER);
+        buildUserUI();renderAll();
+        document.getElementById('profile-modal').style.display='none';
         toast(PROFILE_USER+"'s photo saved!",'success');
       } else {
-        toast('Saved locally. Try a smaller image if it disappears on refresh.','info');
-        console.warn('Photo API response:',res);
+        st.textContent='Failed: '+(res&&res.message?res.message:'unknown error');
+        st.style.color='var(--red)';
+        console.error('Photo save failed:',res);
       }
     });
   });
