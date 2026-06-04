@@ -1,368 +1,1039 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <title>Shared Task Manager</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TaskFlow — Internal Task Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-dark: #4f46e5;
+  --bg: #0f0f13;
+  --bg2: #16161d;
+  --bg3: #1e1e28;
+  --bg4: #252533;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #5a5a72;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 99px; }
+.mono { font-family: 'DM Mono', monospace; }
+
+/* Sidebar */
+#sidebar { width: 220px; min-width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 400; color: var(--text2); transition: all .15s; margin: 1px 8px; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: rgba(99,102,241,.15); color: var(--accent-light); font-weight: 500; }
+.nav-item svg { opacity: .7; flex-shrink: 0; }
+.nav-item.active svg { opacity: 1; }
+.nav-section { font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); padding: 16px 16px 6px; }
+
+/* Main layout */
+#app { display: flex; height: 100vh; overflow: hidden; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#topbar { height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; background: var(--bg); flex-shrink: 0; }
+#content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; border: none; font-family: inherit; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-danger { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+.btn-danger:hover { background: rgba(248,113,113,.2); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-icon { padding: 6px; background: transparent; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; color: var(--text2); display: inline-flex; align-items: center; justify-content: center; transition: all .15s; }
+.btn-icon:hover { background: var(--bg3); color: var(--text); }
+
+/* Cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; }
+.card-sm { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; }
+
+/* Stats */
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+.stat-label { font-size: 12px; color: var(--text3); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.stat-val { font-size: 28px; font-weight: 600; line-height: 1.2; margin-top: 4px; }
+
+/* Tags / badges */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 500; }
+.badge-todo { background: rgba(152,152,176,.12); color: var(--text2); }
+.badge-inprogress { background: rgba(96,165,250,.12); color: var(--blue); }
+.badge-review { background: rgba(167,139,250,.12); color: var(--purple); }
+.badge-done { background: rgba(52,211,153,.12); color: var(--green); }
+.badge-high { background: rgba(248,113,113,.12); color: var(--red); }
+.badge-medium { background: rgba(251,191,36,.12); color: var(--amber); }
+.badge-low { background: rgba(52,211,153,.12); color: var(--green); }
+
+/* Task row */
+.task-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: 9px; cursor: pointer; transition: background .12s; border: 1px solid transparent; }
+.task-row:hover { background: var(--bg3); border-color: var(--border); }
+
+/* Kanban */
+.kanban-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; min-width: 240px; max-width: 280px; flex: 1; display: flex; flex-direction: column; max-height: calc(100vh - 140px); }
+.kanban-body { overflow-y: auto; padding: 8px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.kanban-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 13px; cursor: pointer; transition: all .15s; }
+.kanban-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.kanban-card.dragging { opacity: .4; }
+.kanban-col.drag-over { border-color: var(--accent); background: rgba(99,102,241,.06); }
+
+/* Calendar */
+.cal-day { width: 36px; height: 36px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all .12s; position: relative; }
+.cal-day:hover { background: var(--bg3); }
+.cal-day.today { background: rgba(99,102,241,.2); color: var(--accent-light); font-weight: 600; }
+.cal-day.has-tasks::after { content: ''; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-light); }
+.cal-day.selected { background: var(--accent); color: #fff; }
+.cal-day.selected::after { background: #fff; }
+.cal-day.other-month { color: var(--text3); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+.modal-header { padding: 20px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+.modal-body { padding: 20px 24px 24px; }
+
+/* Form */
+.form-label { font-size: 12.5px; color: var(--text2); font-weight: 500; margin-bottom: 6px; display: block; }
+.form-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 9px 12px; font-size: 13.5px; color: var(--text); font-family: inherit; outline: none; transition: border-color .15s; }
+.form-input:focus { border-color: var(--accent); }
+.form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239898b0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+textarea.form-input { resize: vertical; min-height: 80px; }
+
+/* Notification */
+.notif-panel { position: fixed; top: 56px; right: 16px; width: 340px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,.5); z-index: 500; overflow: hidden; max-height: 480px; display: flex; flex-direction: column; }
+.notif-item { padding: 12px 16px; display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px solid var(--border); transition: background .12s; }
+.notif-item:hover { background: var(--bg3); }
+.notif-item:last-child { border-bottom: none; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+
+/* Activity */
+.activity-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+
+/* User avatar */
+.avatar { border-radius: 50%; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+/* Search highlight */
+.hl { background: rgba(99,102,241,.3); border-radius: 2px; }
+
+/* Loading bar */
+#sync-bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--accent); width: 0; transition: width .3s; z-index: 9999; }
+
+/* User switcher pill */
+.user-pill { display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; background: var(--bg3); border: 1px solid var(--border); border-radius: 99px; cursor: pointer; transition: all .15s; font-size: 13px; }
+.user-pill:hover { border-color: var(--border2); }
+
+/* Tooltip */
+.tooltip { position: absolute; background: var(--bg4); border: 1px solid var(--border2); border-radius: 7px; padding: 6px 10px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+
+/* Responsive */
+@media(max-width:768px){
+  #sidebar { position: fixed; left: -220px; z-index: 200; transition: left .2s; height: 100vh; }
+  #sidebar.open { left: 0; }
+  #right-panel { display: none !important; }
+}
+
+/* View transitions */
+.view { display: none; }
+.view.active { display: block; }
+
+/* Overdue blink */
+@keyframes pulse-red { 0%,100%{opacity:1}50%{opacity:.5} }
+.overdue-dot { animation: pulse-red 1.5s infinite; }
+
+/* Done view strikethrough */
+.task-done-title { text-decoration: line-through; color: var(--text3); }
+</style>
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body>
 
-<div id="app" class="h-screen flex flex-col">
+<div id="sync-bar"></div>
 
-  <header class="bg-white border-b shadow-sm">
-    <div class="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold">Shared Task Manager</h1>
-        <p class="text-sm text-slate-500">Google Apps Script + Google Sheets</p>
+<!-- Notification Panel (hidden by default) -->
+<div id="notif-panel" class="notif-panel" style="display:none;">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-weight:600;font-size:14px;">Notifications</span>
+    <button class="btn-icon btn-sm" onclick="toggleNotif()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div id="notif-list" style="overflow-y:auto;flex:1;"></div>
+</div>
+
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div style="padding:18px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);">
+      <div style="width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       </div>
+      <span style="font-weight:600;font-size:15px;">TaskFlow</span>
+    </div>
 
-      <div class="flex gap-3">
-        <input id="searchInput" class="border rounded-lg px-4 py-2" placeholder="Search tasks">
-        <select id="currentUser" class="border rounded-lg px-4 py-2">
-          <option>Sir Ram</option>
-          <option>Ma'am Ana</option>
-          <option>Anj</option>
-          <option>Isaac</option>
-        </select>
+    <!-- User switcher -->
+    <div style="padding:12px 10px;">
+      <div class="user-pill" id="user-pill-btn" onclick="toggleUserMenu()">
+        <div id="sidebar-avatar" class="avatar" style="width:26px;height:26px;background:rgba(99,102,241,.2);color:var(--accent-light);font-size:11px;"></div>
+        <span id="sidebar-username" style="font-size:13px;font-weight:500;"></span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;color:var(--text3)"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div id="user-menu" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:9px;margin-top:6px;overflow:hidden;"></div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:4px 0;">
+      <div class="nav-section">Views</div>
+      <div class="nav-item active" onclick="switchView('dashboard')" id="nav-dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="switchView('list')" id="nav-list">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        List View
+      </div>
+      <div class="nav-item" onclick="switchView('kanban')" id="nav-kanban">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+        Kanban Board
+      </div>
+      <div class="nav-item" onclick="switchView('calendar')" id="nav-calendar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Calendar
+      </div>
+      <div class="nav-item" onclick="switchView('done')" id="nav-done">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 12 2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
+        Done
+      </div>
+      <div class="nav-item" onclick="switchView('activity')" id="nav-activity">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Activity Log
+      </div>
+      <div class="nav-section" style="margin-top:8px;">Filters</div>
+      <div class="nav-item" onclick="filterByPriority('High')" id="filter-high">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;"></div>High Priority
+      </div>
+      <div class="nav-item" onclick="filterByPriority('Medium')" id="filter-medium">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;"></div>Medium Priority
+      </div>
+      <div class="nav-item" onclick="filterByPriority('Low')" id="filter-low">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>Low Priority
       </div>
     </div>
-  </header>
 
-  <main class="flex-1 overflow-hidden">
-    <div class="grid grid-cols-12 h-full">
-
-      <section class="col-span-12 lg:col-span-8 p-6 overflow-y-auto">
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div class="bg-white p-4 rounded-xl shadow"><div>Total</div><div id="statTotal" class="text-3xl font-bold">0</div></div>
-          <div class="bg-white p-4 rounded-xl shadow"><div>Pending</div><div id="statPending" class="text-3xl font-bold">0</div></div>
-          <div class="bg-white p-4 rounded-xl shadow"><div>In Progress</div><div id="statProgress" class="text-3xl font-bold">0</div></div>
-          <div class="bg-white p-4 rounded-xl shadow"><div>Completed</div><div id="statCompleted" class="text-3xl font-bold">0</div></div>
-        </div>
-
-        <div class="flex gap-2 mb-4">
-          <button class="px-4 py-2 bg-blue-600 text-white rounded">List</button>
-          <button class="px-4 py-2 bg-white border rounded">Kanban</button>
-          <button class="px-4 py-2 bg-white border rounded">Done</button>
-        </div>
-<div id="kanbanView" class="hidden">
-
-  <div class="grid md:grid-cols-4 gap-4">
-
-    <div class="bg-white rounded-xl p-4 shadow">
-      <h3 class="font-bold mb-3">Pending</h3>
-      <div id="pendingCol"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="openCreateModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New Task
+      </button>
     </div>
-
-    <div class="bg-white rounded-xl p-4 shadow">
-      <h3 class="font-bold mb-3">In Progress</h3>
-      <div id="progressCol"></div>
-    </div>
-
-    <div class="bg-white rounded-xl p-4 shadow">
-      <h3 class="font-bold mb-3">Blocked</h3>
-      <div id="blockedCol"></div>
-    </div>
-
-    <div class="bg-white rounded-xl p-4 shadow">
-      <h3 class="font-bold mb-3">Completed</h3>
-      <div id="completedCol"></div>
-    </div>
-
   </div>
 
-</div>
-        <div id="taskContainer" class="bg-white rounded-xl shadow p-4 min-h-[500px]">
-          Loading tasks...
-        </div>
-      </section>
+  <!-- Main -->
+  <div id="main">
+    <!-- Topbar -->
+    <div id="topbar">
+      <button class="btn-icon" id="menu-btn" onclick="toggleSidebar()" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <div id="page-title" style="font-weight:600;font-size:15px;color:var(--text);">Dashboard</div>
+      <div style="flex:1;"></div>
+      <!-- Search -->
+      <div style="position:relative;display:flex;align-items:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;color:var(--text3);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search-input" class="form-input" placeholder="Search tasks…" style="width:200px;padding-left:32px;padding-top:7px;padding-bottom:7px;font-size:13px;" oninput="handleSearch(this.value)"/>
+      </div>
+      <!-- Notif bell -->
+      <button class="btn-icon" onclick="toggleNotif()" id="notif-btn" style="position:relative;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notif-badge" style="position:absolute;top:3px;right:3px;width:8px;height:8px;background:var(--red);border-radius:50%;display:none;"></span>
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        Refresh
+      </button>
+    </div>
 
-      <aside class="col-span-12 lg:col-span-4 bg-white border-l overflow-y-auto">
-        <div class="p-5 space-y-6">
+    <!-- Content -->
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="view active">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:28px;" id="stats-grid"></div>
+        <div style="display:grid;grid-template-columns:1fr 360px;gap:20px;">
           <div>
-            <h3 class="font-bold mb-3">Calendar</h3>
-       <div
-  id="calendarContainer"
-  class="grid grid-cols-7 gap-2"
-></div>
-
-            <!-- NOTIFICATIONS -->
-<div>
-
-  <div class="flex items-center justify-between mb-3">
-    <h3 class="font-bold text-lg">
-      Notifications
-    </h3>
-  </div>
-
-  <div
-    id="notificationsContainer"
-    class="space-y-2"
-  >
-
-    <div class="text-slate-400">
-      No notifications
-    </div>
-
-  </div>
-
-</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--text2);">Recent Tasks</div>
+            <div id="dashboard-recent" class="card" style="padding:8px;"></div>
           </div>
-
           <div>
-            <h3 class="font-bold mb-3">Activity</h3>
-            <div id="activityContainer">
-              Loading activity...
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--text2);">Calendar</div>
+            <div class="card" style="padding:16px;" id="dash-calendar"></div>
+            <div style="margin-top:16px;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--text2);">Due Soon</div>
+              <div id="due-soon-list" class="card" style="padding:8px;"></div>
             </div>
           </div>
         </div>
-      </aside>
+      </div>
+
+      <!-- LIST -->
+      <div id="view-list" class="view">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="font-weight:600;font-size:15px;flex:1;">All Tasks</div>
+          <select class="form-input form-select" style="width:140px;font-size:13px;" onchange="applyListFilter(this.value,'status')">
+            <option value="">All Status</option>
+            <option>To Do</option><option>In Progress</option><option>Review</option>
+          </select>
+          <select class="form-input form-select" style="width:130px;font-size:13px;" onchange="applyListFilter(this.value,'assignee')">
+            <option value="">All Assignees</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Task</button>
+        </div>
+        <div id="list-tasks" class="card" style="padding:8px;"></div>
+      </div>
+
+      <!-- KANBAN -->
+      <div id="view-kanban" class="view">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="font-weight:600;font-size:15px;flex:1;">Kanban Board</div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Task</button>
+        </div>
+        <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:16px;" id="kanban-board"></div>
+      </div>
+
+      <!-- CALENDAR VIEW -->
+      <div id="view-calendar" class="view">
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;">
+          <div>
+            <div style="font-weight:600;font-size:15px;margin-bottom:16px;">Calendar View</div>
+            <div class="card" style="padding:20px;" id="full-calendar"></div>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--text2);" id="cal-day-label">Select a Day</div>
+            <div id="cal-day-tasks" class="card" style="padding:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DONE -->
+      <div id="view-done" class="view">
+        <div style="font-weight:600;font-size:15px;margin-bottom:16px;">Completed Tasks</div>
+        <div id="done-tasks" class="card" style="padding:8px;"></div>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div id="view-activity" class="view">
+        <div style="font-weight:600;font-size:15px;margin-bottom:16px;">Activity Log</div>
+        <div class="card" style="padding:16px 20px;" id="activity-list"></div>
+      </div>
 
     </div>
-  </main>
-
-  <button id="addTaskBtn"
-    class="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-blue-600 text-white text-3xl shadow-xl">+</button>
-
+  </div>
 </div>
 
-<div id="taskModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
-  <div class="bg-white rounded-xl w-full max-w-3xl mx-4">
-    <div class="p-4 border-b flex justify-between">
-      <h2 id="modalTitle" class="font-bold text-xl">Create Task</h2>
-      <button onclick="closeTaskModal()">✕</button>
+<!-- Create/Edit Task Modal -->
+<div id="task-modal" class="modal-overlay" style="display:none;" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title" style="font-size:16px;font-weight:600;">New Task</h3>
+      <button class="btn-icon" onclick="closeModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
-
-    <div class="p-4 space-y-3">
-      <input id="taskId" type="hidden">
-
-      <input id="taskTitle" class="w-full border rounded p-2" placeholder="Title">
-
-      <textarea id="taskDescription" class="w-full border rounded p-2" placeholder="Description"></textarea>
-
-      <textarea id="taskRemarks" class="w-full border rounded p-2" placeholder="Remarks"></textarea>
-
-      <div class="grid grid-cols-2 gap-3">
-        <select id="taskAssignedTo" class="border rounded p-2">
-          <option>Sir Ram</option>
-          <option>Ma'am Ana</option>
-          <option>Anj</option>
-          <option>Isaac</option>
-        </select>
-
-        <select id="taskPriority" class="border rounded p-2">
-          <option>Low</option>
-          <option>Medium</option>
-          <option>High</option>
-          <option>Urgent</option>
-        </select>
+    <div class="modal-body">
+      <input type="hidden" id="task-id"/>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label class="form-label">Title *</label>
+          <input id="task-title" class="form-input" placeholder="Task title…"/>
+        </div>
+        <div>
+          <label class="form-label">Description</label>
+          <textarea id="task-desc" class="form-input" placeholder="What needs to be done?"></textarea>
+        </div>
+        <div>
+          <label class="form-label">Remarks</label>
+          <textarea id="task-remarks" class="form-input" placeholder="Additional notes…" style="min-height:60px;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="form-label">Assigned To</label>
+            <select id="task-assignedTo" class="form-input form-select"></select>
+          </div>
+          <div>
+            <label class="form-label">Priority</label>
+            <select id="task-priority" class="form-input form-select">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="form-label">Status</label>
+            <select id="task-status" class="form-input form-select">
+              <option>To Do</option><option>In Progress</option><option>Review</option><option>Done</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Due Type</label>
+            <select id="task-dueType" class="form-input form-select" onchange="toggleDueDateField()">
+              <option value="None">None</option>
+              <option value="Date">Date</option>
+              <option value="DateTime">Date & Time</option>
+            </select>
+          </div>
+        </div>
+        <div id="due-date-wrap" style="display:none;">
+          <label class="form-label">Due Date</label>
+          <input id="task-dueDate" class="form-input" type="datetime-local"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+          <button id="modal-save-btn" class="btn btn-primary" style="flex:1;justify-content:center;" onclick="saveTask()">Create Task</button>
+          <button id="modal-delete-btn" class="btn btn-danger" style="display:none;" onclick="confirmDelete()">Delete</button>
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <select id="taskStatus" class="border rounded p-2">
-          <option>Pending</option>
-          <option>In Progress</option>
-          <option>Blocked</option>
-          <option>Completed</option>
-        </select>
-
-        <input id="taskDueDate" type="date" class="border rounded p-2">
+<!-- Task Detail Modal -->
+<div id="detail-modal" class="modal-overlay" style="display:none;" onclick="closeDetailOutside(event)">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="detail-priority-badge"></span>
+        <span id="detail-status-badge"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="editCurrentDetail()">Edit</button>
+        <button class="btn-icon" onclick="closeDetail()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
     </div>
-
-    <div class="p-4 border-t flex justify-end gap-2">
-      <button onclick="closeTaskModal()" class="border px-4 py-2 rounded">Cancel</button>
-      <button id="saveTaskBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
-    </div>
+    <div class="modal-body" id="detail-body"></div>
   </div>
 </div>
 
 <script>
-let TASKS=[];
-let USERS=[];
-let ACTIVITY=[];
-let DASHBOARD={};
-let EDIT_MODE=false;
-let CURRENT_TASK={};
+const API = 'https://script.google.com/macros/s/AKfycbz9JESvZo_t6IrknR8bw-0S3Gd8CoxUx4KPWd1WEhlIAyaO6U0japOUcrVe6vJoq6Sq/exec';
 
-document.addEventListener("DOMContentLoaded", initializeApp);
+let TASKS = [];
+let USERS = [];
+let ACTIVITY = [];
+let STATS = {};
+let CURRENT_USER = '';
+let CURRENT_VIEW = 'dashboard';
+let FILTER_PRIORITY = '';
+let LIST_FILTER_STATUS = '';
+let LIST_FILTER_ASSIGNEE = '';
+let SEARCH_QUERY = '';
+let CAL_DATE = new Date();
+let SELECTED_CAL_DAY = null;
+let DETAIL_TASK_ID = null;
+let DRAG_TASK_ID = null;
+let notifOpen = false;
 
-function initializeApp(){
-  if(typeof google !== "undefined" && google.script){
-    loadUsers();
-    loadTasks();
-    loadActivity();
-    loadDashboardStats();
+// ============ API CALLS ============
+async function api(action, payload = {}) {
+  setSyncBar(30);
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    setSyncBar(100);
+    setTimeout(() => setSyncBar(0), 400);
+    return data;
+  } catch (e) {
+    setSyncBar(0);
+    console.error(e);
+    return null;
   }
 }
-function addNotification(message) {
 
-  const box =
-    document.getElementById("notificationsContainer");
+function setSyncBar(pct) {
+  const bar = document.getElementById('sync-bar');
+  bar.style.width = pct + '%';
+  if (pct === 0) bar.style.transition = 'none';
+  else bar.style.transition = 'width .3s';
+}
 
-  if (!box) return;
+async function loadAll() {
+  const [tasks, users, activity, stats] = await Promise.all([
+    api('getTasks'), api('getUsers'), api('getActivity'), api('getDashboardStats')
+  ]);
+  if (tasks) TASKS = tasks;
+  if (users) { USERS = users; renderUsersList(); }
+  if (activity) ACTIVITY = activity;
+  if (stats) STATS = stats;
+  renderAll();
+  buildNotifications();
+}
 
-  box.innerHTML = `
-    <div class="border rounded-lg p-2 bg-yellow-50">
-      ${message}
+// ============ RENDER ALL ============
+function renderAll() {
+  renderStats();
+  renderDashboardRecent();
+  renderDashboardCalendar();
+  renderDueSoon();
+  renderListView();
+  renderKanban();
+  renderCalendarView();
+  renderDoneView();
+  renderActivityLog();
+}
+
+// ============ USERS ============
+function renderUsersList() {
+  const sel = document.getElementById('task-assignedTo');
+  const assigneeSel = document.querySelector('select[onchange*="assignee"]');
+  const userMenu = document.getElementById('user-menu');
+
+  sel.innerHTML = USERS.map(u => `<option value="${u.Name}">${u.Name}</option>`).join('');
+
+  if (assigneeSel) {
+    assigneeSel.innerHTML = '<option value="">All Assignees</option>' +
+      USERS.map(u => `<option value="${u.Name}">${u.Name}</option>`).join('');
+  }
+
+  userMenu.innerHTML = USERS.map(u => `
+    <div onclick="switchUser('${u.Name}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .12s;font-size:13px;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">
+      ${avatarHTML(u.Name, 24)}
+      <span>${u.Name}</span>
     </div>
-  ` + box.innerHTML;
+  `).join('');
 
-}
-function loadUsers(){
-  google.script.run.withSuccessHandler(renderUsers).getUsers();
+  if (!CURRENT_USER && USERS.length) switchUser(USERS[0].Name, false);
 }
 
-function renderUsers(users){
-  USERS = users || [];
+function switchUser(name, close = true) {
+  CURRENT_USER = name;
+  document.getElementById('sidebar-username').textContent = name;
+  const av = document.getElementById('sidebar-avatar');
+  av.style.background = userColor(name);
+  av.style.color = '#fff';
+  av.textContent = initials(name);
+  if (close) document.getElementById('user-menu').style.display = 'none';
 }
 
-function loadTasks(){
-  google.script.run.withSuccessHandler(renderTasks).getTasks();
+function toggleUserMenu() {
+  const m = document.getElementById('user-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
 }
 
-function renderTasks(tasks){
-  TASKS = tasks || [];
-  document.getElementById("taskContainer").innerHTML =
-    TASKS.map(t => `<div class="border rounded p-3 mb-2">
-      <div class="font-semibold">${t.Title || ""}</div>
-      <div class="text-sm">${t.AssignedTo || ""}</div>
-    </div>`).join("") || "No tasks";
+function initials(name) {
+  return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
 }
-function renderKanban() {
 
-  const statuses = {
+const USER_COLORS = ['#6366f1','#0ea5e9','#f97316','#22c55e','#ec4899','#a855f7'];
+function userColor(name) {
+  let h = 0;
+  for (let c of name) h = (h * 31 + c.charCodeAt(0)) % USER_COLORS.length;
+  return USER_COLORS[h];
+}
 
-    "Pending": "pendingCol",
-    "In Progress": "progressCol",
-    "Blocked": "blockedCol",
-    "Completed": "completedCol"
+function avatarHTML(name, size = 28) {
+  const user = USERS.find(u => u.Name === name);
+  if (user && user.PhotoURL) {
+    return `<img src="${user.PhotoURL}" class="avatar" style="width:${size}px;height:${size}px;" alt="${name}"/>`;
+  }
+  return `<div class="avatar" style="width:${size}px;height:${size}px;background:${userColor(name)};color:#fff;">${initials(name)}</div>`;
+}
 
-  };
+// ============ STATS ============
+function renderStats() {
+  const grid = document.getElementById('stats-grid');
+  const cards = [
+    { label: 'Total Tasks', val: STATS.total || 0, color: 'var(--text)' },
+    { label: 'To Do', val: STATS.todo || 0, color: 'var(--text2)' },
+    { label: 'In Progress', val: STATS.inProgress || 0, color: 'var(--blue)' },
+    { label: 'Review', val: STATS.review || 0, color: 'var(--purple)' },
+    { label: 'Done', val: STATS.done || 0, color: 'var(--green)' },
+    { label: 'Overdue', val: STATS.overdue || 0, color: 'var(--red)' },
+  ];
+  grid.innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-val" style="color:${c.color}">${c.val}</div>
+    </div>
+  `).join('');
+}
 
-  Object.values(statuses)
-    .forEach(id => {
+// ============ TASK HELPERS ============
+function statusBadge(s) {
+  const map = { 'To Do': 'badge-todo', 'In Progress': 'badge-inprogress', 'Review': 'badge-review', 'Done': 'badge-done' };
+  return `<span class="badge ${map[s] || 'badge-todo'}">${s}</span>`;
+}
+function priorityBadge(p) {
+  const map = { High: 'badge-high', Medium: 'badge-medium', Low: 'badge-low' };
+  return `<span class="badge ${map[p] || 'badge-medium'}">${p}</span>`;
+}
+function formatDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '';
+  return dt.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function isOverdue(task) {
+  if (task.Status === 'Done' || !task.DueDate) return false;
+  return new Date(task.DueDate) < new Date();
+}
+function isDueToday(task) {
+  if (task.Status === 'Done' || !task.DueDate) return false;
+  const d = new Date(task.DueDate);
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+function isDueSoon(task) {
+  if (task.Status === 'Done' || !task.DueDate) return false;
+  const diff = new Date(task.DueDate) - new Date();
+  return diff > 0 && diff < 86400000 * 3;
+}
 
-      document.getElementById(id)
-        .innerHTML = "";
-
-    });
-
-  TASKS.forEach(task => {
-
-    const column =
-      statuses[task.Status];
-
-    if (!column) return;
-
-    document.getElementById(column)
-      .innerHTML += `
-
-      <div
-        class="border rounded-lg p-3 mb-2 bg-slate-50"
-      >
-
-        <div class="font-medium">
-          ${task.Title}
+function taskRowHTML(task, extra = '') {
+  const overdue = isOverdue(task);
+  return `
+    <div class="task-row" onclick="openDetail('${task.ID}')">
+      <div style="width:3px;height:32px;border-radius:99px;background:${task.Priority==='High'?'var(--red)':task.Priority==='Medium'?'var(--amber)':'var(--green)'};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${highlight(task.Title)}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:8px;">
+          ${task.AssignedTo ? `<span style="display:flex;align-items:center;gap:4px;">${avatarHTML(task.AssignedTo,16)} ${task.AssignedTo}</span>` : ''}
+          ${task.DueDate ? `<span style="color:${overdue?'var(--red)':isDueToday(task)?'var(--amber)':'var(--text3)'}">${overdue?'⚠ ':isDueToday(task)?'⏰ ':''}${formatDate(task.DueDate)}</span>` : ''}
         </div>
-
-        <div class="text-xs text-slate-500">
-          ${task.AssignedTo}
-        </div>
-
       </div>
+      ${statusBadge(task.Status)}
+      ${extra}
+    </div>
+  `;
+}
 
+function highlight(text) {
+  if (!SEARCH_QUERY || !text) return text || '';
+  const re = new RegExp(`(${SEARCH_QUERY.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return String(text).replace(re, '<mark class="hl">$1</mark>');
+}
+
+// ============ DASHBOARD ============
+function renderDashboardRecent() {
+  const el = document.getElementById('dashboard-recent');
+  const recent = [...TASKS].filter(t => t.Status !== 'Done').sort((a, b) => new Date(b.UpdatedAt) - new Date(a.UpdatedAt)).slice(0, 8);
+  el.innerHTML = recent.length ? recent.map(t => taskRowHTML(t)).join('') : emptyState('No active tasks');
+}
+
+function renderDueSoon() {
+  const el = document.getElementById('due-soon-list');
+  const soon = TASKS.filter(t => t.Status !== 'Done' && t.DueDate && new Date(t.DueDate) - new Date() < 86400000 * 7 && new Date(t.DueDate) > new Date()).sort((a, b) => new Date(a.DueDate) - new Date(b.DueDate)).slice(0, 5);
+  el.innerHTML = soon.length ? soon.map(t => taskRowHTML(t)).join('') : emptyState('No upcoming deadlines');
+}
+
+// ============ LIST VIEW ============
+function renderListView() {
+  const el = document.getElementById('list-tasks');
+  let tasks = TASKS.filter(t => t.Status !== 'Done');
+  if (LIST_FILTER_STATUS) tasks = tasks.filter(t => t.Status === LIST_FILTER_STATUS);
+  if (LIST_FILTER_ASSIGNEE) tasks = tasks.filter(t => t.AssignedTo === LIST_FILTER_ASSIGNEE);
+  if (FILTER_PRIORITY) tasks = tasks.filter(t => t.Priority === FILTER_PRIORITY);
+  if (SEARCH_QUERY) tasks = tasks.filter(t => t.Title?.toLowerCase().includes(SEARCH_QUERY.toLowerCase()) || t.Description?.toLowerCase().includes(SEARCH_QUERY.toLowerCase()));
+  el.innerHTML = tasks.length ? tasks.map(t => taskRowHTML(t)).join('') : emptyState('No tasks found');
+}
+
+function applyListFilter(val, type) {
+  if (type === 'status') LIST_FILTER_STATUS = val;
+  if (type === 'assignee') LIST_FILTER_ASSIGNEE = val;
+  renderListView();
+}
+
+// ============ KANBAN ============
+const KANBAN_COLS = ['To Do', 'In Progress', 'Review'];
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = KANBAN_COLS.map(col => {
+    const tasks = TASKS.filter(t => t.Status === col);
+    return `
+      <div class="kanban-col" id="col-${col.replace(/ /g,'_')}" ondragover="onDragOver(event,'${col}')" ondrop="onDrop(event,'${col}')" ondragleave="onDragLeave(event)">
+        <div style="padding:14px 14px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
+          <span style="font-weight:600;font-size:13.5px;">${col}</span>
+          <span style="background:var(--bg4);color:var(--text2);border-radius:99px;padding:1px 8px;font-size:12px;">${tasks.length}</span>
+        </div>
+        <div class="kanban-body">
+          ${tasks.map(t => kanbanCard(t)).join('') || `<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0;">No tasks</div>`}
+        </div>
+      </div>
     `;
+  }).join('');
+}
 
+function kanbanCard(t) {
+  const overdue = isOverdue(t);
+  return `
+    <div class="kanban-card" draggable="true" ondragstart="onDragStart(event,'${t.ID}')" onclick="openDetail('${t.ID}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:500;line-height:1.4;">${t.Title}</div>
+        ${priorityBadge(t.Priority)}
+      </div>
+      ${t.Description ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${t.Description}</div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+        ${t.AssignedTo ? avatarHTML(t.AssignedTo, 22) : '<div></div>'}
+        ${t.DueDate ? `<span style="font-size:11px;color:${overdue?'var(--red)':isDueToday(t)?'var(--amber)':'var(--text3)'}">${overdue?'⚠ ':''}${formatDate(t.DueDate)}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ============ DRAG & DROP ============
+function onDragStart(e, id) {
+  DRAG_TASK_ID = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { const el = e.target; if (el) el.classList.add('dragging'); }, 0);
+}
+function onDragOver(e, col) {
+  e.preventDefault();
+  document.getElementById('col-' + col.replace(/ /g, '_')).classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+async function onDrop(e, col) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!DRAG_TASK_ID) return;
+  const task = TASKS.find(t => t.ID === DRAG_TASK_ID);
+  if (!task || task.Status === col) return;
+  task.Status = col;
+  renderKanban();
+  await api('updateTask', { ...task, updatedBy: CURRENT_USER });
+  logAction('Moved', task.ID, task.Title, `to ${col}`);
+  await loadAll();
+}
+
+// ============ CALENDAR ============
+function buildCalendarHTML(containerId, compact = false) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const year = CAL_DATE.getFullYear();
+  const month = CAL_DATE.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+
+  const tasksByDay = {};
+  TASKS.filter(t => t.Status !== 'Done' && t.DueDate).forEach(t => {
+    const d = new Date(t.DueDate);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const key = d.getDate();
+      if (!tasksByDay[key]) tasksByDay[key] = [];
+      tasksByDay[key].push(t);
+    }
   });
 
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = compact ? ['S','M','T','W','T','F','S'] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${compact?12:16}px;">
+      <button class="btn-icon" onclick="prevMonth()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+      <span style="font-weight:600;font-size:${compact?13:15}px;">${monthNames[month]} ${year}</span>
+      <button class="btn-icon" onclick="nextMonth()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+      ${dayNames.map(d => `<div style="text-align:center;font-size:11px;color:var(--text3);font-weight:500;padding:4px 0;">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+  `;
+
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day other-month"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    const hasTask = !!tasksByDay[d];
+    const isSelected = SELECTED_CAL_DAY === d && CAL_DATE.getMonth() === month;
+    const cls = ['cal-day', isToday ? 'today' : '', hasTask ? 'has-tasks' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
+    const tasksHint = hasTask ? tasksByDay[d].map(t => t.Title).join('\n') : '';
+    html += `<div class="${cls}" title="${tasksHint}" onclick="selectCalDay(${d})">${d}</div>`;
+  }
+
+  html += `</div>`;
+  el.innerHTML = html;
 }
-  function renderCalendar() {
 
-  const calendar =
-    document.getElementById(
-      "calendarContainer"
-    );
+function renderDashboardCalendar() { buildCalendarHTML('dash-calendar', true); }
+function renderCalendarView() {
+  buildCalendarHTML('full-calendar', false);
+  renderCalDayTasks();
+}
+function prevMonth() { CAL_DATE = new Date(CAL_DATE.getFullYear(), CAL_DATE.getMonth() - 1, 1); renderDashboardCalendar(); renderCalendarView(); }
+function nextMonth() { CAL_DATE = new Date(CAL_DATE.getFullYear(), CAL_DATE.getMonth() + 1, 1); renderDashboardCalendar(); renderCalendarView(); }
 
-  let html = "";
+function selectCalDay(d) {
+  SELECTED_CAL_DAY = d;
+  buildCalendarHTML('full-calendar', false);
+  buildCalendarHTML('dash-calendar', true);
+  renderCalDayTasks();
+}
 
-  for (let day = 1; day <= 35; day++) {
+function renderCalDayTasks() {
+  const el = document.getElementById('cal-day-tasks');
+  const label = document.getElementById('cal-day-label');
+  if (!SELECTED_CAL_DAY) { if (el) el.innerHTML = emptyState('Select a day to see tasks'); return; }
+  if (label) {
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    label.textContent = `${monthNames[CAL_DATE.getMonth()]} ${SELECTED_CAL_DAY}, ${CAL_DATE.getFullYear()}`;
+  }
+  const tasks = TASKS.filter(t => {
+    if (t.Status === 'Done' || !t.DueDate) return false;
+    const d = new Date(t.DueDate);
+    return d.getFullYear() === CAL_DATE.getFullYear() && d.getMonth() === CAL_DATE.getMonth() && d.getDate() === SELECTED_CAL_DAY;
+  });
+  if (el) el.innerHTML = tasks.length ? tasks.map(t => taskRowHTML(t)).join('') : emptyState('No tasks on this day');
+}
 
-    html += `
-
-      <div
-        class="border rounded p-2 min-h-[80px] bg-white"
-      >
-
-        <div class="text-xs font-bold">
-          ${day}
-        </div>
-
+// ============ DONE VIEW ============
+function renderDoneView() {
+  const el = document.getElementById('done-tasks');
+  const done = TASKS.filter(t => t.Status === 'Done').sort((a, b) => new Date(b.CompletedAt || b.UpdatedAt) - new Date(a.CompletedAt || a.UpdatedAt));
+  el.innerHTML = done.length ? done.map(t => `
+    <div class="task-row" onclick="openDetail('${t.ID}')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" style="flex-shrink:0;"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+      <div style="flex:1;min-width:0;">
+        <div class="task-done-title" style="font-size:13.5px;">${t.Title}</div>
+        <div style="font-size:12px;color:var(--text3);">${t.AssignedTo || ''} ${t.CompletedAt ? '· ' + formatDate(t.CompletedAt) : ''}</div>
       </div>
+      ${priorityBadge(t.Priority)}
+    </div>
+  `).join('') : emptyState('No completed tasks yet');
+}
 
-    `;
+// ============ ACTIVITY LOG ============
+function renderActivityLog() {
+  const el = document.getElementById('activity-list');
+  const actionColors = { CREATE_TASK: 'var(--green)', UPDATE_TASK: 'var(--blue)', DELETE_TASK: 'var(--red)' };
+  const actionLabels = { CREATE_TASK: 'Created', UPDATE_TASK: 'Updated', DELETE_TASK: 'Deleted' };
+  el.innerHTML = ACTIVITY.length ? ACTIVITY.slice(0, 50).map(a => `
+    <div class="activity-item">
+      ${avatarHTML(a.User || '?', 30)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;"><span style="font-weight:500;">${a.User || '?'}</span> <span style="color:${actionColors[a.Action]||'var(--text2)'};">${actionLabels[a.Action]||a.Action}</span> <span style="color:var(--text2);">${a.Details || ''}</span></div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">${formatDate(a.Timestamp)}</div>
+      </div>
+    </div>
+  `).join('') : emptyState('No activity yet');
+}
 
+// ============ NOTIFICATIONS ============
+function buildNotifications() {
+  const list = document.getElementById('notif-list');
+  const items = [];
+  TASKS.forEach(t => {
+    if (t.Status === 'Done') return;
+    if (isOverdue(t)) items.push({ color: 'var(--red)', title: 'Overdue', desc: t.Title, id: t.ID });
+    else if (isDueToday(t)) items.push({ color: 'var(--amber)', title: 'Due Today', desc: t.Title, id: t.ID });
+    else if (isDueSoon(t)) items.push({ color: 'var(--blue)', title: 'Due Soon', desc: t.Title, id: t.ID });
+  });
+  const badge = document.getElementById('notif-badge');
+  badge.style.display = items.length ? 'block' : 'none';
+  list.innerHTML = items.length ? items.map(n => `
+    <div class="notif-item" onclick="openDetail('${n.id}');toggleNotif();" style="cursor:pointer;">
+      <div class="notif-dot ${n.color === 'var(--red)' ? 'overdue-dot' : ''}" style="background:${n.color};"></div>
+      <div>
+        <div style="font-size:12.5px;font-weight:500;color:${n.color};">${n.title}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">${n.desc}</div>
+      </div>
+    </div>
+  `).join('') : `<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">All caught up!</div>`;
+
+  if (items.length && Notification.permission === 'default') {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') {
+        items.slice(0, 3).forEach(n => new Notification(`TaskFlow — ${n.title}`, { body: n.desc }));
+      }
+    });
   }
-
-  calendar.innerHTML = html;
-
 }
-function loadActivity(){
-  google.script.run.withSuccessHandler(data=>{
-    ACTIVITY=data||[];
-  }).getActivity();
+
+function toggleNotif() {
+  const p = document.getElementById('notif-panel');
+  notifOpen = !notifOpen;
+  p.style.display = notifOpen ? 'flex' : 'none';
 }
-function showView(view) {
 
-  document
-    .getElementById("taskContainer")
-    .classList.add("hidden");
+// ============ TASK DETAIL ============
+function openDetail(id) {
+  const task = TASKS.find(t => t.ID === id);
+  if (!task) return;
+  DETAIL_TASK_ID = id;
+  document.getElementById('detail-priority-badge').innerHTML = priorityBadge(task.Priority);
+  document.getElementById('detail-status-badge').innerHTML = statusBadge(task.Status);
+  const body = document.getElementById('detail-body');
+  body.innerHTML = `
+    <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">${task.Title}</h2>
+    ${task.Description ? `<p style="font-size:13.5px;color:var(--text2);line-height:1.6;margin-bottom:16px;">${task.Description}</p>` : ''}
+    ${task.Remarks ? `<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--text2);border-left:3px solid var(--accent);"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:block;margin-bottom:4px;">Remarks</span>${task.Remarks}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+      <div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Assigned To</span><div style="display:flex;align-items:center;gap:6px;">${task.AssignedTo ? avatarHTML(task.AssignedTo, 22) : ''} ${task.AssignedTo || '—'}</div></div>
+      <div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Created By</span><div style="display:flex;align-items:center;gap:6px;">${task.CreatedBy ? avatarHTML(task.CreatedBy, 22) : ''} ${task.CreatedBy || '—'}</div></div>
+      <div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Due Date</span>${task.DueDate ? formatDate(task.DueDate) : '—'}</div>
+      <div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Created At</span>${formatDate(task.CreatedAt)}</div>
+      ${task.CompletedAt ? `<div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Completed</span>${formatDate(task.CompletedAt)}</div>` : ''}
+      <div><span style="color:var(--text3);display:block;font-size:11.5px;margin-bottom:3px;">Last Updated By</span>${task.LastUpdatedBy || '—'}</div>
+    </div>
+  `;
+  document.getElementById('detail-modal').style.display = 'flex';
+}
 
-  const kanban =
-    document.getElementById("kanbanView");
+function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; DETAIL_TASK_ID = null; }
+function closeDetailOutside(e) { if (e.target === document.getElementById('detail-modal')) closeDetail(); }
+function editCurrentDetail() { if (DETAIL_TASK_ID) { closeDetail(); openEditModal(DETAIL_TASK_ID); } }
 
-  if (kanban)
-    kanban.classList.add("hidden");
+// ============ CREATE / EDIT MODAL ============
+function openCreateModal() {
+  document.getElementById('modal-title').textContent = 'New Task';
+  document.getElementById('task-id').value = '';
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-desc').value = '';
+  document.getElementById('task-remarks').value = '';
+  document.getElementById('task-priority').value = 'Medium';
+  document.getElementById('task-status').value = 'To Do';
+  document.getElementById('task-dueType').value = 'None';
+  document.getElementById('task-dueDate').value = '';
+  document.getElementById('due-date-wrap').style.display = 'none';
+  document.getElementById('modal-save-btn').textContent = 'Create Task';
+  document.getElementById('modal-delete-btn').style.display = 'none';
+  if (USERS.length) document.getElementById('task-assignedTo').value = USERS[0].Name;
+  document.getElementById('task-modal').style.display = 'flex';
+}
 
-  if (view === "list") {
-
-    document
-      .getElementById("taskContainer")
-      .classList.remove("hidden");
-
+function openEditModal(id) {
+  const task = TASKS.find(t => t.ID === id);
+  if (!task) return;
+  document.getElementById('modal-title').textContent = 'Edit Task';
+  document.getElementById('task-id').value = task.ID;
+  document.getElementById('task-title').value = task.Title;
+  document.getElementById('task-desc').value = task.Description || '';
+  document.getElementById('task-remarks').value = task.Remarks || '';
+  document.getElementById('task-assignedTo').value = task.AssignedTo || '';
+  document.getElementById('task-priority').value = task.Priority || 'Medium';
+  document.getElementById('task-status').value = task.Status || 'To Do';
+  document.getElementById('task-dueType').value = task.DueType || 'None';
+  if (task.DueDate) {
+    const dt = new Date(task.DueDate);
+    document.getElementById('task-dueDate').value = dt.toISOString().slice(0, 16);
   }
+  toggleDueDateField();
+  document.getElementById('modal-save-btn').textContent = 'Save Changes';
+  document.getElementById('modal-delete-btn').style.display = 'inline-flex';
+  document.getElementById('task-modal').style.display = 'flex';
+}
 
-  if (view === "kanban") {
+function toggleDueDateField() {
+  const v = document.getElementById('task-dueType').value;
+  const wrap = document.getElementById('due-date-wrap');
+  wrap.style.display = v === 'None' ? 'none' : 'block';
+  document.getElementById('task-dueDate').type = v === 'DateTime' ? 'datetime-local' : 'date';
+}
 
-    kanban.classList.remove("hidden");
+function closeModal() { document.getElementById('task-modal').style.display = 'none'; }
+function closeModalOutside(e) { if (e.target === document.getElementById('task-modal')) closeModal(); }
 
-    renderKanban();
-
+async function saveTask() {
+  const id = document.getElementById('task-id').value;
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { document.getElementById('task-title').focus(); return; }
+  const payload = {
+    title,
+    description: document.getElementById('task-desc').value,
+    remarks: document.getElementById('task-remarks').value,
+    assignedTo: document.getElementById('task-assignedTo').value,
+    priority: document.getElementById('task-priority').value,
+    status: document.getElementById('task-status').value,
+    dueType: document.getElementById('task-dueType').value,
+    dueDate: document.getElementById('task-dueDate').value,
+  };
+  closeModal();
+  if (id) {
+    await api('updateTask', { id, ...payload, updatedBy: CURRENT_USER });
+  } else {
+    await api('createTask', { ...payload, createdBy: CURRENT_USER });
   }
-
-}
-function loadDashboardStats(){
-  google.script.run.withSuccessHandler(stats=>{
-    document.getElementById("statTotal").textContent=stats.total||0;
-    document.getElementById("statPending").textContent=stats.pending||0;
-    document.getElementById("statProgress").textContent=stats.inProgress||0;
-    document.getElementById("statCompleted").textContent=stats.completed||0;
-  }).getDashboardStats();
+  await loadAll();
 }
 
-function openCreateTaskModal(){
-  document.getElementById("taskModal").classList.remove("hidden");
-  document.getElementById("taskModal").classList.add("flex");
+async function confirmDelete() {
+  const id = document.getElementById('task-id').value;
+  if (!id) return;
+  closeModal();
+  await api('deleteTask', { taskId: id, userName: CURRENT_USER });
+  await loadAll();
 }
 
-function closeTaskModal(){
-  document.getElementById("taskModal").classList.add("hidden");
-  document.getElementById("taskModal").classList.remove("flex");
+// ============ SEARCH ============
+function handleSearch(q) {
+  SEARCH_QUERY = q.trim();
+  renderListView();
+  renderDashboardRecent();
 }
 
-document.getElementById("addTaskBtn").addEventListener("click", openCreateTaskModal);
+// ============ FILTER BY PRIORITY ============
+function filterByPriority(p) {
+  FILTER_PRIORITY = FILTER_PRIORITY === p ? '' : p;
+  ['High','Medium','Low'].forEach(x => {
+    document.getElementById('filter-' + x.toLowerCase()).classList.toggle('active', FILTER_PRIORITY === x);
+  });
+  switchView('list');
+  renderListView();
+}
+
+// ============ VIEW SWITCHER ============
+function switchView(v) {
+  CURRENT_VIEW = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el => el.classList.remove('active'));
+  const viewEl = document.getElementById('view-' + v);
+  if (viewEl) viewEl.classList.add('active');
+  const navEl = document.getElementById('nav-' + v);
+  if (navEl) navEl.classList.add('active');
+  const titles = { dashboard:'Dashboard', list:'List View', kanban:'Kanban Board', calendar:'Calendar', done:'Done', activity:'Activity Log' };
+  document.getElementById('page-title').textContent = titles[v] || v;
+  FILTER_PRIORITY = '';
+  ['high','medium','low'].forEach(x => document.getElementById('filter-' + x)?.classList.remove('active'));
+  if (v === 'kanban') renderKanban();
+  if (v === 'calendar') renderCalendarView();
+}
+
+// ============ SIDEBAR MOBILE ============
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ============ UTIL ============
+function emptyState(msg) {
+  return `<div style="padding:28px;text-align:center;color:var(--text3);font-size:13px;">${msg}</div>`;
+}
+
+function logAction(action, id, title, detail) {}
+
+// ============ RESPONSIVE ============
+function checkResponsive() {
+  const btn = document.getElementById('menu-btn');
+  if (window.innerWidth < 768) btn.style.display = 'inline-flex';
+  else { btn.style.display = 'none'; document.getElementById('sidebar').classList.remove('open'); }
+}
+window.addEventListener('resize', checkResponsive);
+checkResponsive();
+
+// ============ INIT ============
+loadAll();
 </script>
-
 </body>
 </html>
