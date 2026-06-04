@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>TaskFlow</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+    font-family:'Inter',sans-serif;
+}
+
+body{
+    background:#0f172a;
+}
+
+</style>
+
+</head>
+
+<body class="text-white">
+
+<div class="h-screen flex flex-col">
+
+    <!-- HEADER -->
+
+    <div class="bg-slate-900 border-b border-slate-800 p-4">
+
+        <div class="flex justify-between items-center">
+
+            <h1 class="text-2xl font-bold">
+
+                TaskFlow
+
+            </h1>
+
+            <div class="flex gap-3">
+
+                <select
+                    id="userSelect"
+                    class="bg-slate-800 p-2 rounded-lg">
+
+                    <option>Sir Ram</option>
+                    <option>Ma'am Ana</option>
+                    <option>Anj</option>
+                    <option>Isaac</option>
+
+                </select>
+
+                <button
+                    id="refreshBtn"
+                    class="bg-blue-600 px-4 py-2 rounded-lg">
+
+                    Refresh
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- DASHBOARD -->
+
+    <div class="grid grid-cols-5 gap-4 p-6">
+
+        <div class="bg-slate-800 p-4 rounded-xl">
+
+            <div>Total</div>
+
+            <div
+                id="totalTasks"
+                class="text-3xl font-bold">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl">
+
+            <div>To Do</div>
+
+            <div
+                id="todoCount"
+                class="text-3xl font-bold">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl">
+
+            <div>Progress</div>
+
+            <div
+                id="progressCount"
+                class="text-3xl font-bold">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl">
+
+            <div>Review</div>
+
+            <div
+                id="reviewCount"
+                class="text-3xl font-bold">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-xl">
+
+            <div>Done</div>
+
+            <div
+                id="doneCount"
+                class="text-3xl font-bold">
+
+                0
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- SEARCH -->
+
+    <div class="px-6">
+
+        <input
+            id="searchInput"
+            placeholder="Search tasks..."
+            class="w-full p-3 rounded-xl bg-slate-800">
+
+    </div>
+
+    <!-- TASKS -->
+
+    <div
+        id="taskContainer"
+        class="flex-1 overflow-auto p-6 space-y-4">
+
+    </div>
+
+</div>
+
+<script>
+
+const APP = {
+
+    WEBAPP_URL:
+    "https://script.google.com/macros/s/AKfycbz9JESvZo_t6IrknR8bw-0S3Gd8CoxUx4KPWd1WEhlIAyaO6U0japOUcrVe6vJoq6Sq/exec",
+
+    currentUser:"Sir Ram",
+
+    tasks:[]
+
+};
+
+document
+.getElementById('userSelect')
+.addEventListener('change',e=>{
+
+    APP.currentUser =
+        e.target.value;
+
+});
+
+async function api(action,data={}){
+
+    const response =
+        await fetch(
+            APP.WEBAPP_URL,
+            {
+                method:'POST',
+                body:JSON.stringify({
+                    action,
+                    ...data
+                })
+            }
+        );
+
+    return await response.json();
+
+}
+
+async function loadTasks(){
+
+    const tasks =
+        await api(
+            'getTasks'
+        );
+
+    APP.tasks =
+        tasks || [];
+
+    renderTasks();
+
+    updateStats();
+
+}
+
+function updateStats(){
+
+    const tasks =
+        APP.tasks;
+
+    document.getElementById(
+        'totalTasks'
+    ).innerText =
+        tasks.length;
+
+    document.getElementById(
+        'todoCount'
+    ).innerText =
+        tasks.filter(
+            t =>
+            t.Status ===
+            'To Do'
+        ).length;
+
+    document.getElementById(
+        'progressCount'
+    ).innerText =
+        tasks.filter(
+            t =>
+            t.Status ===
+            'In Progress'
+        ).length;
+
+    document.getElementById(
+        'reviewCount'
+    ).innerText =
+        tasks.filter(
+            t =>
+            t.Status ===
+            'Review'
+        ).length;
+
+    document.getElementById(
+        'doneCount'
+    ).innerText =
+        tasks.filter(
+            t =>
+            t.Status ===
+            'Done'
+        ).length;
+
+}
+
+function renderTasks(){
+
+    const container =
+        document.getElementById(
+            'taskContainer'
+        );
+
+    container.innerHTML='';
+
+    APP.tasks.forEach(task=>{
+
+        const card =
+            document.createElement('div');
+
+        card.className =
+        `
+        bg-slate-800
+        rounded-xl
+        p-5
+        `;
+
+        card.innerHTML = `
+
+            <div class="flex justify-between">
+
+                <div>
+
+                    <div class="font-bold text-lg">
+
+                        ${task.Title}
+
+                    </div>
+
+                    <div class="text-slate-400 mt-2">
+
+                        ${task.Description || ''}
+
+                    </div>
+
+                </div>
+
+                <div>
+
+                    ${task.Status}
+
+                </div>
+
+            </div>
+
+            <div class="mt-4 text-sm">
+
+                Assigned:
+                ${task.AssignedTo || '-'}
+
+            </div>
+
+        `;
+
+        container.appendChild(card);
+
+    });
+
+}
+
+document
+.getElementById(
+    'refreshBtn'
+)
+.addEventListener(
+    'click',
+    loadTasks
+);
+
+loadTasks();
+
+</script>
+
+</body>
+</html>
