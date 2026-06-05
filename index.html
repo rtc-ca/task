@@ -159,6 +159,52 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5;}
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.4}}
 .pulse{animation:pu 1.6s infinite;}
 
+/* ── Task counter badge on nav items ── */
+.nav-badge{
+  margin-left:auto;
+  background:rgba(99,102,241,.2);
+  color:var(--al);
+  border-radius:99px;
+  font-size:10px;
+  font-weight:600;
+  padding:1px 6px;
+  min-width:18px;
+  text-align:center;
+  flex-shrink:0;
+}
+/* ── Bulk delete bar ── */
+#bulk-bar{
+  display:none;
+  align-items:center;
+  gap:10px;
+  padding:10px 16px;
+  background:rgba(99,102,241,.1);
+  border:1px solid rgba(99,102,241,.2);
+  border-radius:10px;
+  margin-bottom:12px;
+  font-size:13px;
+}
+#bulk-bar.show{display:flex;}
+/* ── Checkbox style ── */
+.task-cb{
+  width:16px;height:16px;
+  accent-color:var(--a);
+  cursor:pointer;
+  flex-shrink:0;
+}
+/* ── Duplicate warning banner ── */
+.dup-warn{
+  background:rgba(245,158,11,.1);
+  border:1px solid rgba(245,158,11,.25);
+  border-radius:8px;
+  padding:8px 12px;
+  font-size:12.5px;
+  color:var(--am);
+  margin-bottom:12px;
+  display:none;
+}
+.dup-warn.show{display:block;}
+
 /* ── RTC EXECUTIVE AI CHAT ──────────────────────────────────── */
 #ai-bubble{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
 
@@ -391,10 +437,10 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5;}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard
     </div>
     <div class="ni" data-v="list" id="nav-list">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>List View
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>List View<span class="nav-badge" id="badge-list">0</span>
     </div>
     <div class="ni" data-v="kanban" id="nav-kanban">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>Kanban
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>Kanban<span class="nav-badge" id="badge-kanban">0</span>
     </div>
     <div class="ni" data-v="calendar" id="nav-calendar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar
@@ -403,7 +449,7 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5;}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>Notes
     </div>
     <div class="ni" data-v="done" id="nav-done">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Done
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Done<span class="nav-badge" id="badge-done" style="background:rgba(34,197,94,.15);color:var(--gr);">0</span>
     </div>
     <div class="ni" data-v="activity" id="nav-activity">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity
@@ -875,6 +921,7 @@ function ltr(t){
   var qb=nx.map(function(s){return'<button class="qs" data-id="'+t.ID+'" data-s="'+s+'" style="background:'+BC[s]+';color:'+TC[s]+';border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;">→ '+s+'</button>';}).join('');
   return'<div class="tr" data-id="'+t.ID+'" style="flex-direction:column;align-items:stretch;gap:7px;padding:11px 14px;">'
     +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<input type="checkbox" class="task-cb" data-cb="'+t.ID+'" onclick="event.stopPropagation();toggleBulkSelect(''+t.ID+'')" />'
       +'<div style="width:3px;height:34px;border-radius:99px;background:'+pc+';flex-shrink:0;"></div>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+hl(e(t.Title))+'</div>'
@@ -885,10 +932,72 @@ function ltr(t){
       +'</div>'
       +sbg(t.Status)+' '+pbg(t.Priority)
     +'</div>'
-    +(t.Description?'<div style="font-size:12.5px;color:var(--t2);padding-left:13px;line-height:1.5;">'+e(t.Description)+'</div>':'')
-    +(t.Remarks?'<div style="font-size:12px;color:var(--t3);padding:6px 10px;background:var(--s2);border-radius:7px;border-left:2px solid var(--a);margin-left:13px;line-height:1.5;">'+e(t.Remarks)+'</div>':'')
-    +(qb?'<div style="display:flex;gap:6px;padding-left:13px;">'+qb+'</div>':'')
+    +(t.Description?'<div style="font-size:12.5px;color:var(--t2);padding-left:29px;line-height:1.5;">'+e(t.Description)+'</div>':'')
+    +(t.Remarks?'<div style="font-size:12px;color:var(--t3);padding:6px 10px;background:var(--s2);border-radius:7px;border-left:2px solid var(--a);margin-left:29px;line-height:1.5;">'+e(t.Remarks)+'</div>':'')
+    +(qb?'<div style="display:flex;gap:6px;padding-left:29px;">'+qb+'</div>':'')
     +'</div>';
+}
+
+// ── BULK SELECT ─────────────────────────────────────────────
+var SELECTED_IDS = new Set();
+
+function toggleBulkSelect(id){
+  if(SELECTED_IDS.has(id)) SELECTED_IDS.delete(id);
+  else SELECTED_IDS.add(id);
+  var bar = document.getElementById('bulk-bar');
+  var cnt = document.getElementById('bulk-count');
+  if(SELECTED_IDS.size > 0){
+    bar.classList.add('show');
+    cnt.textContent = SELECTED_IDS.size;
+  } else {
+    bar.classList.remove('show');
+  }
+  // Update checkbox visual
+  var cb = document.querySelector('[data-cb="'+id+'"]');
+  if(cb) cb.checked = SELECTED_IDS.has(id);
+}
+
+function cancelBulkSelect(){
+  SELECTED_IDS.clear();
+  document.getElementById('bulk-bar').classList.remove('show');
+  document.querySelectorAll('.task-cb').forEach(function(cb){ cb.checked=false; });
+}
+
+async function bulkDelete(){
+  if(SELECTED_IDS.size === 0) return;
+  var count = SELECTED_IDS.size;
+  if(!confirm('Delete ' + count + ' selected task' + (count>1?'s':'') + '?')) return;
+  var ids = Array.from(SELECTED_IDS);
+  cancelBulkSelect();
+  for(var i=0; i<ids.length; i++){
+    await api('deleteTask',{taskId:ids[i],userName:CU});
+  }
+  toast('Deleted ' + count + ' task' + (count>1?'s':'') + '!','info');
+  await loadAll();
+}
+
+// ── DUPLICATE DETECTION ──────────────────────────────────────
+function checkDuplicate(title, assignedTo){
+  var t = (title||'').trim().toLowerCase();
+  var a = (assignedTo||'').trim().toLowerCase();
+  var dup = TASKS.find(function(task){
+    return task.Title.trim().toLowerCase() === t
+      && task.AssignedTo.trim().toLowerCase() === a
+      && task.Status !== 'Done';
+  });
+  return dup || null;
+}
+
+// ── SIDEBAR BADGES ───────────────────────────────────────────
+function updateBadges(){
+  var active = TASKS.filter(function(t){ return t.Status !== 'Done'; });
+  var done   = TASKS.filter(function(t){ return t.Status === 'Done'; });
+  var bl = document.getElementById('badge-list');
+  var bk = document.getElementById('badge-kanban');
+  var bd = document.getElementById('badge-done');
+  if(bl) bl.textContent = active.length;
+  if(bk) bk.textContent = active.length;
+  if(bd){ bd.textContent = done.length; bd.style.display = done.length ? '' : 'none'; }
 }
 
 async function qst(id,status){
@@ -1180,6 +1289,16 @@ async function saveTask(){
   var id=document.getElementById('tid').value,title=document.getElementById('ttitle').value.trim();
   if(!title){document.getElementById('ttitle').focus();toast('Title required','error');return;}
   var p={title:title,description:document.getElementById('tdesc').value,remarks:document.getElementById('tremark').value,assignedTo:document.getElementById('tassign').value,priority:document.getElementById('tpri').value,status:document.getElementById('tstat').value,dueType:document.getElementById('tdtype').value,dueDate:document.getElementById('tddate').value};
+  // Duplicate check (only on create)
+  if(!id){
+    var dup = checkDuplicate(p.title, p.assignedTo);
+    if(dup){
+      var w = document.getElementById('dup-warn');
+      var wt = document.getElementById('dup-warn-text');
+      wt.textContent = 'Similar task already exists for '+p.assignedTo+': "'+dup.Title+'" ('+dup.Status+'). Creating anyway…';
+      if(w){ w.classList.add('show'); setTimeout(function(){w.classList.remove('show');},5000); }
+    }
+  }
   document.getElementById('task-modal').style.display='none';
   var res;
   if(id){p.id=id;p.updatedBy=CU;res=await api('updateTask',p);if(res&&res.success)toast('Task updated!','success');else toast('Update failed','error');}
@@ -1383,6 +1502,8 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('notif-x').addEventListener('click',toggleNotif);
   // List filters
   document.getElementById('lfs').addEventListener('change',rList);
+  document.getElementById('bulk-del-btn').addEventListener('click', bulkDelete);
+  document.getElementById('bulk-cancel-btn').addEventListener('click', cancelBulkSelect);
   document.getElementById('lfa').addEventListener('change',rList);
   // Task modal
   document.getElementById('tm-save').addEventListener('click',saveTask);
@@ -1517,6 +1638,7 @@ var GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
 var AI_OPEN = false;
 var AI_FILE_DATA = null; // { base64, mimeType, name }
+var AI_HISTORY = []; // conversation history for context
 var isRecording = false;
 var mediaRecognition = null;
 
@@ -1544,15 +1666,20 @@ function toggleAI(){
 function clearAIChat(){
   document.getElementById('ai-msgs').innerHTML='';
   AI_FILE_DATA=null;
+  AI_HISTORY=[];
   aiGreet();
 }
 
 function aiGreet(){
   var hour=new Date().getHours();
   var greet=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
-  if(hour>=12&&hour<17) greet='Good afternoon';
-  else if(hour>=17) greet='Good evening';
-  addAIMsg('bot','Hi '+CU+'! '+greet+'! 👋\n\nAko si **TaskFlow AI** — pwede kang mag-ask ng tungkol sa tasks, mag-create ng task, mag-request ng summary, o mag-upload ng file para i-analyze ko.\n\nHalimbawa:\n• "Add task for Isaac — review report by June 10"\n• "What are Anj\'s pending tasks?"\n• "Summarize this week\'s progress"');
+  var msgs = [
+    'Hey '+CU+'! '+greet+' 👋 I\'m RTC Executive AI. Ask me anything — tasks, general questions, trivia, or just chat!',
+    'Hi '+CU+'! '+greet+' ✨ Ready to help. Task-related or not — just ask!',
+    greet+', '+CU+'! 😊 What\'s on your mind? I\'m here for anything.',
+  ];
+  var msg = msgs[Math.floor(Math.random()*msgs.length)];
+  addAIMsg('bot', msg);
 }
 
 function buildAIChips(){
@@ -1571,9 +1698,12 @@ function buildAIChips(){
 function addAIMsg(role,text,imgSrc){
   var msgs=document.getElementById('ai-msgs');
   var div=document.createElement('div');
-  div.className='ai-msg '+role;
-  // Convert **bold** markdown
-  var html=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+  // Use correct CSS class names: aimsg u (user) or aimsg b (bot)
+  div.className='aimsg '+(role==='user'?'u':'b');
+  var html=(text||'')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br/>');
   div.innerHTML=html;
   if(imgSrc){var img=document.createElement('img');img.src=imgSrc;div.appendChild(img);}
   msgs.appendChild(div);
@@ -1582,33 +1712,53 @@ function addAIMsg(role,text,imgSrc){
 }
 
 function buildSystemPrompt(){
-  // Give Gemini full context of current tasks
-  var taskSummary=TASKS.map(function(t){
-    return'- ['+t.Status+'] '+t.Title+' (Assigned: '+(t.AssignedTo||'Nobody')+', Priority: '+t.Priority+(t.DueDate?', Due: '+fd(t.DueDate):'')+(t.Remarks?', Remarks: '+t.Remarks:'')+')';
-  }).join('\n');
-
-  var userList=USERS.map(function(u){return u.Name;}).join(', ');
-
-  return 'You are TaskFlow AI, a smart assistant for an internal task management system called RTC TaskFlow used by the RTC Executive Department.\n\n'
-    +'Current user: '+CU+'\n'
-    +'Team members: '+userList+'\n\n'
-    +'CURRENT TASKS ('+TASKS.length+' total):\n'+taskSummary+'\n\n'
-    +'INSTRUCTIONS:\n'
-    +'1. You can speak both Tagalog and English. Match the language of the user.\n'
-    +'2. When the user wants to CREATE a task, extract the details and respond with a JSON block like:\n'
-    +'   ACTION:CREATE_TASK\n'
-    +'   {"title":"...","assignedTo":"...","dueDate":"YYYY-MM-DD","priority":"High/Medium/Low","status":"To Do","description":"...","remarks":"..."}\n'
-    +'3. When the user wants to UPDATE a task status, respond with:\n'
-    +'   ACTION:UPDATE_TASK\n'
-    +'   {"id":"...","status":"...","updatedBy":"'+CU+'"}\n'
-    +'4. When the user wants to DELETE a task, respond with:\n'
-    +'   ACTION:DELETE_TASK\n'
-    +'   {"taskId":"..."}\n'
-    +'5. For summaries, analysis, and questions — answer helpfully and concisely.\n'
-    +'6. If asked to analyze an uploaded file or image, describe what you see and provide insights.\n'
-    +'7. Keep responses concise — max 3-4 sentences unless a detailed summary is requested.\n'
-    +'8. Always be friendly and professional.';
+  var taskSummary = TASKS.length
+    ? TASKS.map(function(t){
+        return '- ['+t.Status+'] '+t.Title
+          +' (Assigned: '+(t.AssignedTo||'Nobody')
+          +', Priority: '+t.Priority
+          +(t.DueDate?', Due: '+fd(t.DueDate):'')
+          +(t.Remarks?', Remarks: '+t.Remarks:'')
+          +')';
+      }).join('
+')
+    : 'No tasks yet.';
+  var userList = USERS.map(function(u){return u.Name;}).join(', ');
+  return [
+    'You are RTC Executive AI — a smart, friendly, and natural assistant for the RTC Executive Department.',
+    'You work inside RTC TaskFlow, an internal task management system.',
+    'Current user: '+CU,
+    'Team members: '+userList,
+    'Today: '+new Date().toLocaleDateString('en-PH',{weekday:"long",year:"numeric",month:"long",day:"numeric"}),
+    '',
+    'CURRENT TASKS ('+TASKS.length+' total):',
+    taskSummary,
+    '',
+    'YOUR PERSONALITY:',
+    '- You are warm, witty, and conversational — like a knowledgeable colleague, not a robot.',
+    '- You can talk about ANYTHING — general knowledge, science, trivia, advice, jokes — not just tasks.',
+    '- When asked follow-up questions (like "yes", "tell me more", "bakit?"), ALWAYS refer back to what was just discussed in the conversation history.',
+    '- Never redirect the user back to tasks if they are asking about something unrelated.',
+    '- Keep your tone natural and human. Match the user energy.',
+    '',
+    'LANGUAGE RULES (CRITICAL — follow strictly):',
+    '- ALWAYS reply in the EXACT same language the user used in their LATEST message.',
+    '- Tagalog message = Tagalog reply only.',
+    '- English message = English reply only.',
+    '- Taglish = match their mix.',
+    '- NEVER start reply with the user name unless opening greeting.',
+    '- NEVER mix languages in one reply.',
+    '',
+    'TASK MANAGEMENT (only when user clearly wants to manage tasks):',
+    '- CREATE task: write ACTION:CREATE_TASK then on next line: {"title":"...","assignedTo":"...","dueDate":"YYYY-MM-DD","priority":"High/Medium/Low","status":"To Do","description":"...","remarks":"..."}',
+    '- UPDATE task: write ACTION:UPDATE_TASK then: {"id":"...","status":"...","updatedBy":"'+CU+'"}',
+    '- DELETE task: write ACTION:DELETE_TASK then: {"taskId":"..."}',
+    '',
+    'RESPONSE LENGTH: Short question = short answer. List requested = full list. Never cut off mid-answer.',
+  ].join('
+');
 }
+
 
 async function sendAIMessage(userText, fileData){
 
@@ -1631,23 +1781,22 @@ async function sendAIMessage(userText, fileData){
     // Groq API call (free, fast)
     var fd2 = fileData || AI_FILE_DATA;
 
-    // Build messages array
-    var messages = [
-      { role:'system', content: buildSystemPrompt() },
-      { role:'user', content: userText || 'Please analyze the attached file.' }
-    ];
-
-    // Note: Groq free tier doesn't support image/file inline
-    // If file attached, include description in message
+    // Build user message content
+    var userContent = userText || 'Please analyze the attached file.';
     if(fd2 && fd2.base64 && fd2.mimeType && fd2.mimeType.startsWith('text/')){
-      // For text files, decode and include content
-      try {
-        var decoded = atob(fd2.base64);
-        messages[1].content += '\n\nFile contents ('+fd2.name+'):\n' + decoded.slice(0,3000);
-      } catch(e) {}
+      try { userContent += '\n\nFile contents ('+fd2.name+'):\n' + atob(fd2.base64).slice(0,3000); } catch(e){}
     } else if(fd2) {
-      messages[1].content += '\n\n[User attached file: '+fd2.name+'. Describe what insights you can provide based on the filename and context.]';
+      userContent += '\n\n[User attached a file named: '+fd2.name+']';
     }
+
+    // Add user message to history
+    AI_HISTORY.push({ role:'user', content: userContent });
+
+    // Keep history to last 20 messages (10 exchanges) to stay within token limits
+    if(AI_HISTORY.length > 20) AI_HISTORY = AI_HISTORY.slice(AI_HISTORY.length - 20);
+
+    // Build full messages: system + full conversation history
+    var messages = [{ role:'system', content: buildSystemPrompt() }].concat(AI_HISTORY);
 
     var body = {
       model: 'llama-3.3-70b-versatile',
@@ -1678,6 +1827,10 @@ async function sendAIMessage(userText, fileData){
     var replyDiv = addAIMsg('bot','');
     replyDiv.innerHTML = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
     document.getElementById('ai-msgs').scrollTop=document.getElementById('ai-msgs').scrollHeight;
+
+    // Save assistant reply to history (without ACTION blocks to keep context clean)
+    var cleanReply = reply.replace(/ACTION:(CREATE|UPDATE|DELETE)_TASK[\s\S]*?\{[\s\S]*?\}/g,'').trim();
+    if(cleanReply) AI_HISTORY.push({ role:'assistant', content: cleanReply });
 
     // Parse and execute AI actions
     await parseAndExecuteAction(reply);
