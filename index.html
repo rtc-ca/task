@@ -318,6 +318,9 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5;}
   <button class="btn btn-g btn-sm" id="ref-btn" style="gap:5px;">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Refresh
   </button>
+  <button class="bic" id="settings-btn" title="Settings">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
 </div>
 
 <div id="content">
@@ -1348,13 +1351,48 @@ document.addEventListener('DOMContentLoaded',function(){
   window.addEventListener('resize',chkResp);chkResp();
   // Set initial page title
   document.getElementById('ptitle').textContent='Dashboard';
+
+  // ── SETTINGS ─────────────────────────────────────────────
+
+  document.getElementById('settings-btn').addEventListener('click', function(){
+    document.getElementById('settings-modal').style.display = 'flex';
+  });
+
+  document.getElementById('settings-save-btn').addEventListener('click', function(){
+    var key = document.getElementById('gemini-key-input').value.trim();
+    if(key) {
+      localStorage.setItem('tf_gemini_key', key);
+      GEMINI_KEY = key;
+      document.getElementById('key-status').textContent = '✅ Saved!';
+      document.getElementById('key-status').style.color = 'var(--gr)';
+      toast('API key saved!', 'success');
+    } else {
+      localStorage.removeItem('tf_gemini_key');
+      GEMINI_KEY = '';
+      document.getElementById('key-status').textContent = '⚠️ Key removed';
+      document.getElementById('key-status').style.color = 'var(--am)';
+    }
+    // Save refresh interval
+    var interval = parseInt(document.getElementById('refresh-interval').value);
+    localStorage.setItem('tf_refresh_interval', interval);
+    setTimeout(function(){ document.getElementById('settings-modal').style.display='none'; }, 800);
+  });
+
+  document.getElementById('settings-cancel-btn').addEventListener('click', function(){ document.getElementById('settings-modal').style.display='none'; });
+  document.getElementById('settings-x').addEventListener('click', function(){ document.getElementById('settings-modal').style.display='none'; });
+  document.getElementById('settings-modal').addEventListener('click', function(ev){ if(ev.target===this) this.style.display='none'; });
+
+  document.getElementById('toggle-key-vis').addEventListener('click', function(){
+    var inp = document.getElementById('gemini-key-input');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
 });
 
 
 // ══════════════════════════════════════════════════════════════
 //  AI CHAT — Gemini powered
 // ══════════════════════════════════════════════════════════════
-var GEMINI_KEY = 'AQ.Ab8RN6J_rwLN4hGciFb2AfJzxz3GNXVRqbTLnOWBGpCd18bcAA';
+var GEMINI_KEY = 'PROXY'; // Key stored securely in Apps Script
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
 var AI_OPEN = false;
 var AI_FILE_DATA = null; // { base64, mimeType, name }
@@ -1390,7 +1428,7 @@ function clearAIChat(){
 
 function aiGreet(){
   var hour=new Date().getHours();
-  var greet=hour<12?'Good morning':'hour<17?Good afternoon':'Good evening';
+  var greet=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
   if(hour>=12&&hour<17) greet='Good afternoon';
   else if(hour>=17) greet='Good evening';
   addAIMsg('bot','Hi '+CU+'! '+greet+'! 👋\n\nAko si **TaskFlow AI** — pwede kang mag-ask ng tungkol sa tasks, mag-create ng task, mag-request ng summary, o mag-upload ng file para i-analyze ko.\n\nHalimbawa:\n• "Add task for Isaac — review report by June 10"\n• "What are Anj\'s pending tasks?"\n• "Summarize this week\'s progress"');
@@ -1452,6 +1490,7 @@ function buildSystemPrompt(){
 }
 
 async function sendAIMessage(userText, fileData){
+  // Key handled by Apps Script proxy
   userText = (userText||'').trim();
   if(!userText && !fileData && !AI_FILE_DATA) return;
 
@@ -1462,42 +1501,27 @@ async function sendAIMessage(userText, fileData){
   loadingDiv.classList.add('loading');
 
   try {
-    var parts = [];
-
-    // System context
-    parts.push({ text: buildSystemPrompt() });
-
-    // User message
-    if(userText) parts.push({ text: userText });
-
-    // File/image if attached
+    // Build full prompt with system context + user message
     var fd2 = fileData || AI_FILE_DATA;
-    if(fd2 && fd2.base64){
-      parts.push({
-        inlineData: {
-          mimeType: fd2.mimeType,
-          data: fd2.base64
-        }
-      });
-    }
+    var fullPrompt = buildSystemPrompt() + '\n\nUser: ' + (userText||'Please analyze the attached file.');
 
-    var body = {
-      contents: [{ role:'user', parts: parts }],
-      generationConfig: { temperature:0.7, maxOutputTokens:1024 }
-    };
-
-    var resp = await fetch(GEMINI_URL + GEMINI_KEY, {
+    // Route through Apps Script proxy — key stored securely server-side
+    var resp = await fetch(API, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
+      redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'geminiChat',
+        prompt: fullPrompt,
+        fileBase64: fd2?fd2.base64:null,
+        fileMime: fd2?fd2.mimeType:null
+      })
     });
 
-    var data = await resp.json();
-    if(!resp.ok) throw new Error(data.error&&data.error.message?data.error.message:'Gemini error');
+    var data = JSON.parse(await resp.text());
+    if(!data.success) throw new Error(data.message||'Gemini proxy error');
 
-    var reply = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts
-      ? data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('')
-      : 'Sorry, no response.';
+    var reply = data.reply || 'Sorry, no response.';
 
     loadingDiv.classList.remove('loading');
     loadingDiv.innerHTML = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
@@ -1696,6 +1720,51 @@ setInterval(function() {
   }
 }, 30000);
 </script>
+
+
+<!-- ── SETTINGS MODAL ── -->
+<div id="settings-modal" class="mo" style="display:none;">
+  <div class="md" style="max-width:420px;">
+    <div class="md-hd">
+      <h3 style="font-size:16px;font-weight:600;">⚙️ Settings</h3>
+      <button class="bic" id="settings-x"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="md-bd" style="display:flex;flex-direction:column;gap:18px;">
+
+      <!-- Gemini API Key -->
+      <div>
+        <label class="fl" style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px;">🤖 Gemini AI API Key</label>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px;line-height:1.5;">
+          Para gumana ang AI chat, kailangan ng Gemini API key.<br/>
+          Kumuha ng libre: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--al);">aistudio.google.com</a>
+        </div>
+        <div style="position:relative;">
+          <input id="gemini-key-input" class="fi" type="password" placeholder="Paste your Gemini API key here…" style="padding-right:44px;"/>
+          <button id="toggle-key-vis" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t2);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div id="key-status" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+      </div>
+
+      <!-- Auto refresh interval -->
+      <div>
+        <label class="fl" style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px;">🔄 Auto-refresh Interval</label>
+        <select id="refresh-interval" class="fi fsel" style="font-size:13px;">
+          <option value="30000">Every 30 seconds</option>
+          <option value="60000">Every 1 minute</option>
+          <option value="120000">Every 2 minutes</option>
+          <option value="0">Off</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button id="settings-save-btn" class="btn btn-p" style="flex:1;justify-content:center;">Save Settings</button>
+        <button id="settings-cancel-btn" class="btn btn-g">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── AI FLOATING CHAT ── -->
 <div id="ai-bubble">
