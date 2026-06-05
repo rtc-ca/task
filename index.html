@@ -1392,7 +1392,8 @@ document.addEventListener('DOMContentLoaded',function(){
 // ══════════════════════════════════════════════════════════════
 //  AI CHAT — Gemini powered
 // ══════════════════════════════════════════════════════════════
-var GEMINI_KEY = 'PROXY'; // Key stored securely in Apps Script
+var GEMINI_KEY = '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';
+var GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
 var AI_OPEN = false;
 var AI_FILE_DATA = null; // { base64, mimeType, name }
@@ -1490,7 +1491,7 @@ function buildSystemPrompt(){
 }
 
 async function sendAIMessage(userText, fileData){
-  // Key handled by Apps Script proxy
+
   userText = (userText||'').trim();
   if(!userText && !fileData && !AI_FILE_DATA) return;
 
@@ -1501,27 +1502,49 @@ async function sendAIMessage(userText, fileData){
   loadingDiv.classList.add('loading');
 
   try {
-    // Build full prompt with system context + user message
+    // Groq API call (free, fast)
     var fd2 = fileData || AI_FILE_DATA;
-    var fullPrompt = buildSystemPrompt() + '\n\nUser: ' + (userText||'Please analyze the attached file.');
 
-    // Route through Apps Script proxy — key stored securely server-side
-    var resp = await fetch(API, {
-      method:'POST',
-      redirect:'follow',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        action:'geminiChat',
-        prompt: fullPrompt,
-        fileBase64: fd2?fd2.base64:null,
-        fileMime: fd2?fd2.mimeType:null
-      })
+    // Build messages array
+    var messages = [
+      { role:'system', content: buildSystemPrompt() },
+      { role:'user', content: userText || 'Please analyze the attached file.' }
+    ];
+
+    // Note: Groq free tier doesn't support image/file inline
+    // If file attached, include description in message
+    if(fd2 && fd2.base64 && fd2.mimeType && fd2.mimeType.startsWith('text/')){
+      // For text files, decode and include content
+      try {
+        var decoded = atob(fd2.base64);
+        messages[1].content += '\n\nFile contents ('+fd2.name+'):\n' + decoded.slice(0,3000);
+      } catch(e) {}
+    } else if(fd2) {
+      messages[1].content += '\n\n[User attached file: '+fd2.name+'. Describe what insights you can provide based on the filename and context.]';
+    }
+
+    var body = {
+      model: 'llama3-8b-8192',
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 1024
+    };
+
+    var resp = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GEMINI_KEY
+      },
+      body: JSON.stringify(body)
     });
 
-    var data = JSON.parse(await resp.text());
-    if(!data.success) throw new Error(data.message||'Gemini proxy error');
+    var data = await resp.json();
+    if(!resp.ok) throw new Error(data.error&&data.error.message?data.error.message:'Groq API error');
 
-    var reply = data.reply || 'Sorry, no response.';
+    var reply = data.choices&&data.choices[0]&&data.choices[0].message
+      ? data.choices[0].message.content
+      : 'Sorry, no response.';
 
     loadingDiv.classList.remove('loading');
     loadingDiv.innerHTML = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
@@ -1775,7 +1798,7 @@ setInterval(function() {
       </div>
       <div style="flex:1;">
         <div style="font-weight:600;font-size:14px;color:#fff;">TaskFlow AI</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.7);">Powered by Gemini</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.7);">Powered by Groq AI</div>
       </div>
       <button onclick="clearAIChat()" style="background:rgba(255,255,255,.15);border:none;border-radius:7px;padding:4px 8px;color:#fff;font-size:11px;cursor:pointer;">Clear</button>
       <button onclick="toggleAI()" style="background:rgba(255,255,255,.15);border:none;border-radius:7px;padding:4px 7px;color:#fff;cursor:pointer;margin-left:4px;">✕</button>
