@@ -1318,6 +1318,19 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 loadAll();
+
+// ── Auto-refresh every 30 seconds (picks up sheet edits) ──
+setInterval(function() {
+  // Only auto-refresh if user is not actively using a modal
+  var modals = ['task-modal','det-modal','ev-modal','note-modal','prof-modal'];
+  var anyOpen = modals.some(function(id) {
+    var el = document.getElementById(id);
+    return el && el.style.display !== 'none';
+  });
+  if (!anyOpen) {
+    loadAll();
+  }
+}, 30000);
 </script>
 </body>
 </html>
