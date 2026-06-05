@@ -710,7 +710,12 @@ function sb(p){var b=document.getElementById('sync');b.style.transition=p===0?'n
 // ── LOAD ─────────────────────────────────────────────────────
 async function loadAll(){
   var r=await Promise.all([api('getTasks'),api('getUsers'),api('getActivity'),api('getDashboardStats'),api('getEvents'),api('getNotes',{user:CU||''})]);
-  if(r[0])TASKS=Array.isArray(r[0])?r[0]:[];
+  if(r[0])TASKS=Array.isArray(r[0])?r[0].filter(function(t){
+    // Filter out any banner rows or blank rows that slipped through
+    var id = String(t.ID||'').trim();
+    var title = String(t.Title||'').trim();
+    return id.length >= 20 && id.indexOf(' ')===-1 && title.length > 0;
+  }):[];
   if(r[1]&&Array.isArray(r[1])){USERS=r[1];buildUI();}
   if(r[2])ACT=Array.isArray(r[2])?r[2]:[];
   if(r[3])STATS=r[3];
