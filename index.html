@@ -921,7 +921,7 @@ function ltr(t){
   var qb=nx.map(function(s){return'<button class="qs" data-id="'+t.ID+'" data-s="'+s+'" style="background:'+BC[s]+';color:'+TC[s]+';border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;">→ '+s+'</button>';}).join('');
   return'<div class="tr" data-id="'+t.ID+'" style="flex-direction:column;align-items:stretch;gap:7px;padding:11px 14px;">'
     +'<div style="display:flex;align-items:center;gap:10px;">'
-      +'<input type="checkbox" class="task-cb" data-cb="'+t.ID+'" onclick="event.stopPropagation();toggleBulkSelect(''+t.ID+'')" />'
+      +'<input type="checkbox" class="task-cb" data-cb="'+t.ID+'" onclick="event.stopPropagation();toggleBulkSelect(this.getAttribute(\'data-cb\'))" />'
       +'<div style="width:3px;height:34px;border-radius:99px;background:'+pc+';flex-shrink:0;"></div>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+hl(e(t.Title))+'</div>'
