@@ -158,6 +158,39 @@ textarea.fi{resize:vertical;min-height:72px;line-height:1.5;}
 /* ─ Animations ─ */
 @keyframes pu{0%,100%{opacity:1}50%{opacity:.4}}
 .pulse{animation:pu 1.6s infinite;}
+
+/* ── AI CHAT BUBBLE ─────────────────────────────────────── */
+#ai-bubble{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:12px;}
+#ai-toggle{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#06b6d4);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(99,102,241,.5);transition:transform .2s,box-shadow .2s;flex-shrink:0;position:relative;}
+#ai-toggle:hover{transform:scale(1.08);box-shadow:0 6px 32px rgba(99,102,241,.65);}
+.ai-pulse-ring{position:absolute;width:54px;height:54px;border-radius:50%;background:rgba(99,102,241,.3);animation:aipulse 2s infinite;pointer-events:none;}
+@keyframes aipulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(1.6);opacity:0}100%{opacity:0}}
+#ai-panel{width:360px;max-height:600px;background:var(--s1);border:1px solid var(--bd2);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;}
+#ai-panel.open{display:flex;animation:slideup .25s ease;}
+@keyframes slideup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.ai-hd{padding:14px 16px;background:linear-gradient(135deg,#4f46e5,#0891b2);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.ai-hd-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ai-msgs{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:360px;}
+.aimsg{max-width:86%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.55;word-break:break-word;}
+.aimsg.u{background:var(--a);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;}
+.aimsg.b{background:var(--s3);color:var(--tx);align-self:flex-start;border-bottom-left-radius:3px;}
+.aimsg.b.ld{opacity:.55;}
+.aimsg img{max-width:100%;border-radius:8px;margin-top:6px;display:block;}
+.ai-footer{padding:10px 12px;border-top:1px solid var(--bd);background:var(--s2);flex-shrink:0;}
+.ai-chips{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.ai-chip{background:var(--s3);border:1px solid var(--bd2);border-radius:99px;padding:4px 10px;font-size:11.5px;cursor:pointer;color:var(--t2);transition:all .12s;white-space:nowrap;}
+.ai-chip:hover{background:var(--a);color:#fff;border-color:var(--a);}
+.ai-row{display:flex;gap:7px;align-items:flex-end;}
+#ai-inp{flex:1;background:var(--s3);border:1px solid var(--bd2);border-radius:10px;padding:8px 11px;font-size:13px;color:var(--tx);font-family:inherit;outline:none;resize:none;min-height:36px;max-height:100px;line-height:1.4;}
+#ai-inp:focus{border-color:var(--a);}
+.ai-send-btn{width:34px;height:34px;border-radius:9px;background:var(--a);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;}
+.ai-send-btn:hover{background:var(--ad);}
+.ai-mic-btn{width:34px;height:34px;border-radius:9px;background:var(--s3);border:1px solid var(--bd2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;color:var(--t2);}
+.ai-mic-btn:hover{background:var(--s4);}
+.ai-mic-btn.rec{background:rgba(239,68,68,.15);border-color:var(--rd);color:var(--rd);}
+.ai-file-lbl{width:34px;height:34px;border-radius:9px;background:var(--s3);border:1px solid var(--bd2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2);transition:all .12s;}
+.ai-file-lbl:hover{background:var(--s4);}
+@media(max-width:480px){#ai-panel{width:calc(100vw - 32px);}}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .fadein{animation:fi .2s ease;}
 
@@ -1317,6 +1350,337 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('ptitle').textContent='Dashboard';
 });
 
+
+// ══════════════════════════════════════════════════════════════
+//  AI CHAT — Gemini powered
+// ══════════════════════════════════════════════════════════════
+var GEMINI_KEY = 'AQ.Ab8RN6J_rwLN4hGciFb2AfJzxz3GNXVRqbTLnOWBGpCd18bcAA';
+var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=';
+var AI_OPEN = false;
+var AI_FILE_DATA = null; // { base64, mimeType, name }
+var isRecording = false;
+var mediaRecognition = null;
+
+// Quick action chips
+var AI_CHIPS = [
+  { label:'📋 Team Summary', prompt:'Give me a summary of all current tasks for the team. Who has the most tasks? Any overdue?' },
+  { label:'⚠️ Overdue Tasks', prompt:'List all overdue tasks with who they are assigned to.' },
+  { label:'📊 Progress Report', prompt:'Give me a progress report. How many tasks are Done, In Progress, To Do, and Review?' },
+  { label:'➕ Add Task', prompt:'I want to add a new task. Help me.' },
+];
+
+function toggleAI(){
+  AI_OPEN=!AI_OPEN;
+  var panel=document.getElementById('ai-panel');
+  if(AI_OPEN){
+    panel.classList.add('open');
+    if(document.getElementById('ai-msgs').children.length===0) aiGreet();
+    buildAIChips();
+    setTimeout(function(){document.getElementById('ai-input').focus();},100);
+  } else {
+    panel.classList.remove('open');
+  }
+}
+
+function clearAIChat(){
+  document.getElementById('ai-msgs').innerHTML='';
+  AI_FILE_DATA=null;
+  aiGreet();
+}
+
+function aiGreet(){
+  var hour=new Date().getHours();
+  var greet=hour<12?'Good morning':'hour<17?Good afternoon':'Good evening';
+  if(hour>=12&&hour<17) greet='Good afternoon';
+  else if(hour>=17) greet='Good evening';
+  addAIMsg('bot','Hi '+CU+'! '+greet+'! 👋\n\nAko si **TaskFlow AI** — pwede kang mag-ask ng tungkol sa tasks, mag-create ng task, mag-request ng summary, o mag-upload ng file para i-analyze ko.\n\nHalimbawa:\n• "Add task for Isaac — review report by June 10"\n• "What are Anj\'s pending tasks?"\n• "Summarize this week\'s progress"');
+}
+
+function buildAIChips(){
+  var el=document.getElementById('ai-chips');
+  el.innerHTML=AI_CHIPS.map(function(c,i){
+    return'<div class="ai-chip" data-i="'+i+'">'+c.label+'</div>';
+  }).join('');
+  el.querySelectorAll('.ai-chip').forEach(function(chip){
+    chip.addEventListener('click',function(){
+      var idx=parseInt(chip.getAttribute('data-i'));
+      sendAIMessage(AI_CHIPS[idx].prompt);
+    });
+  });
+}
+
+function addAIMsg(role,text,imgSrc){
+  var msgs=document.getElementById('ai-msgs');
+  var div=document.createElement('div');
+  div.className='ai-msg '+role;
+  // Convert **bold** markdown
+  var html=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+  div.innerHTML=html;
+  if(imgSrc){var img=document.createElement('img');img.src=imgSrc;div.appendChild(img);}
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return div;
+}
+
+function buildSystemPrompt(){
+  // Give Gemini full context of current tasks
+  var taskSummary=TASKS.map(function(t){
+    return'- ['+t.Status+'] '+t.Title+' (Assigned: '+(t.AssignedTo||'Nobody')+', Priority: '+t.Priority+(t.DueDate?', Due: '+fd(t.DueDate):'')+(t.Remarks?', Remarks: '+t.Remarks:'')+')';
+  }).join('\n');
+
+  var userList=USERS.map(function(u){return u.Name;}).join(', ');
+
+  return 'You are TaskFlow AI, a smart assistant for an internal task management system called RTC TaskFlow used by the RTC Executive Department.\n\n'
+    +'Current user: '+CU+'\n'
+    +'Team members: '+userList+'\n\n'
+    +'CURRENT TASKS ('+TASKS.length+' total):\n'+taskSummary+'\n\n'
+    +'INSTRUCTIONS:\n'
+    +'1. You can speak both Tagalog and English. Match the language of the user.\n'
+    +'2. When the user wants to CREATE a task, extract the details and respond with a JSON block like:\n'
+    +'   ACTION:CREATE_TASK\n'
+    +'   {"title":"...","assignedTo":"...","dueDate":"YYYY-MM-DD","priority":"High/Medium/Low","status":"To Do","description":"...","remarks":"..."}\n'
+    +'3. When the user wants to UPDATE a task status, respond with:\n'
+    +'   ACTION:UPDATE_TASK\n'
+    +'   {"id":"...","status":"...","updatedBy":"'+CU+'"}\n'
+    +'4. When the user wants to DELETE a task, respond with:\n'
+    +'   ACTION:DELETE_TASK\n'
+    +'   {"taskId":"..."}\n'
+    +'5. For summaries, analysis, and questions — answer helpfully and concisely.\n'
+    +'6. If asked to analyze an uploaded file or image, describe what you see and provide insights.\n'
+    +'7. Keep responses concise — max 3-4 sentences unless a detailed summary is requested.\n'
+    +'8. Always be friendly and professional.';
+}
+
+async function sendAIMessage(userText, fileData){
+  userText = (userText||'').trim();
+  if(!userText && !fileData && !AI_FILE_DATA) return;
+
+  var displayText = userText || '(file uploaded)';
+  addAIMsg('user', displayText, fileData?fileData.previewUrl:(AI_FILE_DATA?AI_FILE_DATA.previewUrl:null));
+
+  var loadingDiv = addAIMsg('bot','Thinking…','');
+  loadingDiv.classList.add('loading');
+
+  try {
+    var parts = [];
+
+    // System context
+    parts.push({ text: buildSystemPrompt() });
+
+    // User message
+    if(userText) parts.push({ text: userText });
+
+    // File/image if attached
+    var fd2 = fileData || AI_FILE_DATA;
+    if(fd2 && fd2.base64){
+      parts.push({
+        inlineData: {
+          mimeType: fd2.mimeType,
+          data: fd2.base64
+        }
+      });
+    }
+
+    var body = {
+      contents: [{ role:'user', parts: parts }],
+      generationConfig: { temperature:0.7, maxOutputTokens:1024 }
+    };
+
+    var resp = await fetch(GEMINI_URL + GEMINI_KEY, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+
+    var data = await resp.json();
+    if(!resp.ok) throw new Error(data.error&&data.error.message?data.error.message:'Gemini error');
+
+    var reply = data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts
+      ? data.candidates[0].content.parts.map(function(p){return p.text||'';}).join('')
+      : 'Sorry, no response.';
+
+    loadingDiv.classList.remove('loading');
+    loadingDiv.innerHTML = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+    document.getElementById('ai-msgs').scrollTop=document.getElementById('ai-msgs').scrollHeight;
+
+    // Parse and execute AI actions
+    await parseAndExecuteAction(reply);
+
+    // Clear file after use
+    AI_FILE_DATA = null;
+
+  } catch(err){
+    loadingDiv.classList.remove('loading');
+    loadingDiv.innerHTML = '❌ Error: '+err.message;
+    console.error('Gemini error:', err);
+  }
+}
+
+async function parseAndExecuteAction(reply){
+  // CREATE_TASK
+  if(reply.indexOf('ACTION:CREATE_TASK')>=0){
+    var match = reply.match(/ACTION:CREATE_TASK[\s\S]*?(\{[\s\S]*?\})/);
+    if(match){
+      try{
+        var payload = JSON.parse(match[1]);
+        payload.createdBy = CU;
+        payload.status = payload.status || 'To Do';
+        payload.priority = payload.priority || 'Medium';
+
+        // Confirm with user before creating
+        var confirmed = confirm(
+          'Create task?\n\n'
+          +'Title: '+payload.title+'\n'
+          +'Assigned to: '+(payload.assignedTo||'Nobody')+'\n'
+          +'Priority: '+payload.priority+'\n'
+          +(payload.dueDate?'Due: '+payload.dueDate+'\n':'')
+        );
+        if(confirmed){
+          var res = await api('createTask', payload);
+          if(res&&res.success){
+            addAIMsg('bot','✅ Task created! **'+payload.title+'** assigned to **'+(payload.assignedTo||'Nobody')+'**.');
+            await loadAll();
+          }
+        } else {
+          addAIMsg('bot','Okay, cancelled! Let me know if you want to change anything.');
+        }
+      }catch(e){ console.error('Parse CREATE_TASK failed',e); }
+    }
+  }
+
+  // UPDATE_TASK
+  if(reply.indexOf('ACTION:UPDATE_TASK')>=0){
+    var match2 = reply.match(/ACTION:UPDATE_TASK[\s\S]*?(\{[\s\S]*?\})/);
+    if(match2){
+      try{
+        var upd = JSON.parse(match2[1]);
+        if(upd.id){
+          var task = TASKS.find(function(t){return t.ID===upd.id;});
+          if(task){
+            var confirmed2 = confirm('Update task "'+task.Title+'" status to '+upd.status+'?');
+            if(confirmed2){
+              var res2 = await api('updateTask',Object.assign({},task,upd,{updatedBy:CU}));
+              if(res2&&res2.success){addAIMsg('bot','✅ Task updated!');await loadAll();}
+            }
+          }
+        }
+      }catch(e){ console.error('Parse UPDATE_TASK failed',e); }
+    }
+  }
+
+  // DELETE_TASK
+  if(reply.indexOf('ACTION:DELETE_TASK')>=0){
+    var match3 = reply.match(/ACTION:DELETE_TASK[\s\S]*?(\{[\s\S]*?\})/);
+    if(match3){
+      try{
+        var del = JSON.parse(match3[1]);
+        if(del.taskId){
+          var task3 = TASKS.find(function(t){return t.ID===del.taskId;});
+          if(task3){
+            var confirmed3 = confirm('Delete task "'+task3.Title+'"?');
+            if(confirmed3){
+              var res3 = await api('deleteTask',{taskId:del.taskId,userName:CU});
+              if(res3&&res3.success){addAIMsg('bot','🗑️ Task deleted.');await loadAll();}
+            }
+          }
+        }
+      }catch(e){ console.error('Parse DELETE_TASK failed',e); }
+    }
+  }
+}
+
+// ── VOICE INPUT ──────────────────────────────────────────────
+function initVoice(){
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    document.getElementById('ai-mic-btn').style.display='none';
+    return;
+  }
+  mediaRecognition = new SpeechRecognition();
+  mediaRecognition.continuous = false;
+  mediaRecognition.interimResults = false;
+  mediaRecognition.lang = 'en-PH'; // supports both English and Filipino
+
+  mediaRecognition.onresult = function(e){
+    var transcript = e.results[0][0].transcript;
+    document.getElementById('ai-input').value = transcript;
+    stopRecording();
+    sendAIMessage(transcript);
+  };
+  mediaRecognition.onerror = function(){stopRecording();};
+  mediaRecognition.onend = function(){stopRecording();};
+}
+
+function toggleVoice(){
+  if(isRecording){
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startRecording(){
+  if(!mediaRecognition) return;
+  try{
+    mediaRecognition.start();
+    isRecording=true;
+    document.getElementById('ai-mic-btn').classList.add('recording');
+    document.getElementById('ai-input').placeholder='Listening…';
+  }catch(e){stopRecording();}
+}
+
+function stopRecording(){
+  if(mediaRecognition){try{mediaRecognition.stop();}catch(e){}}
+  isRecording=false;
+  var btn=document.getElementById('ai-mic-btn');
+  if(btn){btn.classList.remove('recording');}
+  var inp=document.getElementById('ai-input');
+  if(inp)inp.placeholder='Ask anything or say "Add task for Isaac…"';
+}
+
+// ── FILE UPLOAD ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('ai-file-input').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var result = ev.target.result;
+      var base64 = result.split(',')[1];
+      var mimeType = file.type || 'application/octet-stream';
+      AI_FILE_DATA = { base64:base64, mimeType:mimeType, name:file.name, previewUrl: file.type.startsWith('image/')?result:null };
+      addAIMsg('user','📎 File attached: **'+file.name+'** — type your question about it or send as is.',AI_FILE_DATA.previewUrl);
+      document.getElementById('ai-input').focus();
+    };
+    reader.readAsDataURL(file);
+    e.target.value='';
+  });
+
+  document.getElementById('ai-send-btn').addEventListener('click', function(){
+    var val = document.getElementById('ai-input').value.trim();
+    if(val || AI_FILE_DATA){ sendAIMessage(val); document.getElementById('ai-input').value=''; }
+  });
+
+  document.getElementById('ai-input').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && !e.shiftKey){
+      e.preventDefault();
+      var val = this.value.trim();
+      if(val || AI_FILE_DATA){ sendAIMessage(val); this.value=''; }
+    }
+  });
+
+  // Auto-resize textarea
+  document.getElementById('ai-input').addEventListener('input', function(){
+    this.style.height='auto';
+    this.style.height=Math.min(this.scrollHeight,100)+'px';
+  });
+
+  document.getElementById('ai-mic-btn').addEventListener('click', toggleVoice);
+
+  initVoice();
+  buildAIChips();
+});
+
 loadAll();
 
 // ── Auto-refresh every 30 seconds (picks up sheet edits) ──
@@ -1332,5 +1696,44 @@ setInterval(function() {
   }
 }, 30000);
 </script>
+
+<!-- ── AI FLOATING CHAT ── -->
+<div id="ai-bubble">
+  <div id="ai-panel">
+    <div class="ai-hd">
+      <div class="ai-avatar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="6" r="3" fill="#fff" stroke="none"/></svg>
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:14px;color:#fff;">TaskFlow AI</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.7);">Powered by Gemini</div>
+      </div>
+      <button onclick="clearAIChat()" style="background:rgba(255,255,255,.15);border:none;border-radius:7px;padding:4px 8px;color:#fff;font-size:11px;cursor:pointer;">Clear</button>
+      <button onclick="toggleAI()" style="background:rgba(255,255,255,.15);border:none;border-radius:7px;padding:4px 7px;color:#fff;cursor:pointer;margin-left:4px;">✕</button>
+    </div>
+    <div class="ai-msgs" id="ai-msgs"></div>
+    <div class="ai-footer">
+      <div class="ai-actions" id="ai-chips"></div>
+      <div class="ai-input-row">
+        <label class="ai-file-btn" title="Upload file/image">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <input type="file" id="ai-file-input" accept="image/*,.pdf,.txt,.csv"/>
+        </label>
+        <button class="ai-mic" id="ai-mic-btn" title="Voice input">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <textarea id="ai-input" placeholder="Ask anything or say 'Add task for Isaac…'" rows="1"></textarea>
+        <button class="ai-send" id="ai-send-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <button id="ai-toggle" onclick="toggleAI()">
+    <div class="ai-pulse"></div>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+  </button>
+</div>
+
 </body>
 </html>
